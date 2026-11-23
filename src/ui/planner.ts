@@ -136,7 +136,9 @@ export async function replan(plan: Plan, soldiers: SoldierRecord[], absences: Pl
 
 export function toggleHome(plan: Plan, soldiers: SoldierRecord[], id: SoldierId, now: Minutes, solve: SolveAsync): Promise<Plan> {
   const current = plan.absences[id]
-  const updated = isAbsentAt(current, now) ? markBack(current, now) : markHome(current, now, plan.generated.endMinute)
+  // Home time is recorded on the 15-minute grid; the past is still locked at the real "now".
+  const at = Math.round(now / 15) * 15
+  const updated = isAbsentAt(current, now) ? markBack(current, at) : markHome(current, at, plan.generated.endMinute)
   return replan(plan, soldiers, { ...plan.absences, [id]: updated }, now, solve)
 }
 

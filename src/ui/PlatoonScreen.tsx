@@ -32,7 +32,11 @@ export function PlatoonScreen(props: {
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000)
     return () => window.clearInterval(timer)
   }, [])
-  const hm = (m: number) => `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')}`
+  // Shown on the 15-minute grid (a shift in progress counts up to "now").
+  const hm = (raw: number) => {
+    const m = Math.round(raw / 15) * 15
+    return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+  }
   const roles = props.roles
   const ROLES = roles.map((r) => r.id)
   const defaultRole = roles.some((r) => r.id === 'soldier') ? 'soldier' : roles[0]?.id

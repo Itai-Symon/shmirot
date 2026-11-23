@@ -18,6 +18,10 @@ const MIN_MS = 60_000
 const DAY_MIN = 24 * 60
 
 /** Wall-clock hours of the night window used for `nightMinutes` (ALGORITHM.md D2). */
+/** All times and lengths are multiples of this (minutes). */
+export const GRID_MINUTES = 15
+export const roundToGrid = (m: number): number => Math.round(m / GRID_MINUTES) * GRID_MINUTES
+
 export const NIGHT_START_HOUR = 0
 export const NIGHT_END_HOUR = 6
 
@@ -189,8 +193,10 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
 
 export function generateShifts(cfg: ActivityConfig): GeneratedActivity {
   const tz = cfg.timeZone
-  const startN = parseWall(cfg.start)
-  const endN = parseWall(cfg.end)
+  // Everything lives on a 15-minute grid: start and end are rounded to it, and shift lengths
+  // are multiples of 15, so no boundary ever lands on an odd minute.
+  const startN = roundToGrid(parseWall(cfg.start))
+  const endN = roundToGrid(parseWall(cfg.end))
   const startEpochMs = naiveToEpoch(startN, tz)
   const toMinute = (ms: number) => Math.round((ms - startEpochMs) / MIN_MS)
   if (endN <= startN) return { startEpochMs, endMinute: 0, shifts: [] }
@@ -202,7 +208,7 @@ export function generateShifts(cfg: ActivityConfig): GeneratedActivity {
     while (t < endN) {
       const mday = mod(t, DAY_MIN)
       const night = cfg.split !== null && inWindow(mday, cfg.split)
-      const len = Math.max(1, night ? cfg.split!.nightShiftMinutes : cfg.shiftMinutes)
+      const len = Math.max(GRID_MINUTES, roundToGrid(night ? cfg.split!.nightShiftMinutes : cfg.shiftMinutes))
       let next = Math.min(t + len, endN)
       if (cfg.split && cfg.split.fromHour !== cfg.split.toHour) next = Math.min(next, nextEdge(t, cfg.split))
       const w = post.activeWindow

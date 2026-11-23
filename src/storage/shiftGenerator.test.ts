@@ -240,3 +240,21 @@ describe('post weight and free shift length', () => {
     expect(g.shifts.filter((s) => s.postIndex === 1).every((s) => s.weightFactor === undefined)).toBe(true)
   })
 })
+
+describe('15-minute grid', () => {
+  it('odd start/end minutes and lengths are rounded so every boundary is on the grid', () => {
+    const g = generateShifts({
+      start: '2026-12-01T17:04',
+      end: '2026-12-02T09:52',
+      timeZone: 'Asia/Jerusalem',
+      shiftMinutes: 133,
+      split: { fromHour: 22, toHour: 6, nightShiftMinutes: 97 },
+      posts: [{ requirements: { soldier: 1 }, activeWindow: null }],
+    })
+    for (const s of g.shifts) {
+      expect(s.start % 15, s.id).toBe(0) // minute 0 is 17:00 (17:04 rounded)
+      expect(s.end % 15, s.id).toBe(0)
+    }
+    expect(g.endMinute % 15).toBe(0)
+  })
+})

@@ -69,7 +69,7 @@ export function ActivityScreen(props: {
       <div className="card">
         <label className="field">
           <span>{t.activity.start}</span>
-          <input type="datetime-local" value={s.start} onChange={(e) => setStart(e.target.value)} />
+          <input type="datetime-local" step={900} value={s.start} onChange={(e) => setStart(e.target.value)} />
         </label>
         <div className="field">
           <span>{t.activity.duration}</span>
@@ -77,7 +77,7 @@ export function ActivityScreen(props: {
         </div>
         <label className="field">
           <span>{t.activity.end}</span>
-          <input type="datetime-local" value={s.end} onChange={(e) => setEnd(e.target.value)} />
+          <input type="datetime-local" step={900} value={s.end} onChange={(e) => setEnd(e.target.value)} />
         </label>
       </div>
 
