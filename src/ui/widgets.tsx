@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { formatDuration, parseDuration, snap } from './duration'
+import { type ReactNode, useState } from 'react'
 
 export function Chips<T extends string | number>(props: {
   options: readonly T[]
@@ -82,37 +83,50 @@ export function Sheet(props: { onClose: () => void; children: ReactNode }) {
   )
 }
 
-/** Hour chips plus a free minutes field (15-minute steps). */
-export function MinutesPicker(props: {
+/**
+ * One field for a length of time: − / + in 15-minute steps, and the value itself can be typed
+ * ("2:30", "2.5", "150").
+ */
+export function DurationField(props: {
   value: number
-  hours: readonly number[]
-  label: (h: number) => string
-  minutesLabel: string
   onChange: (minutes: number) => void
+  label: string
   min?: number
   max?: number
+  step?: number
 }) {
   const min = props.min ?? 15
   const max = props.max ?? 12 * 60
-  const chip = props.hours.find((h) => h * 60 === props.value) ?? null
+  const step = props.step ?? 15
+  const [text, setText] = useState<string | null>(null)
+  const commit = () => {
+    if (text === null) return
+    const v = parseDuration(text)
+    if (v !== null) props.onChange(snap(v, step, min, max))
+    setText(null)
+  }
   return (
-    <div className="minutes-picker">
-      <Chips options={props.hours} value={chip} label={props.label} onChange={(h) => props.onChange(h * 60)} />
-      <label className="inline">
-        <span className="muted">{props.minutesLabel}</span>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={min}
-          max={max}
-          step={15}
-          value={props.value}
-          onChange={(e) => {
-            const v = Math.round(Number(e.target.value))
-            if (Number.isFinite(v) && v >= min && v <= max) props.onChange(v)
-          }}
-        />
-      </label>
+    <div className="duration">
+      <button type="button" aria-label="+" disabled={props.value >= max} onClick={() => props.onChange(snap(props.value + step, step, min, max))}>
+        +
+      </button>
+      <input
+        type="text"
+        inputMode="decimal"
+        aria-label={props.label}
+        value={text ?? formatDuration(props.value)}
+        onFocus={(e) => {
+          setText(formatDuration(props.value))
+          e.currentTarget.select()
+        }}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      <span className="duration-unit">ש׳</span>
+      <button type="button" aria-label="−" disabled={props.value <= min} onClick={() => props.onChange(snap(props.value - step, step, min, max))}>
+        −
+      </button>
     </div>
   )
 }

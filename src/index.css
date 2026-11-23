@@ -221,3 +221,8 @@ table.stats td.num { direction: ltr; text-align: right; }
 .offline-status { margin: 0 0 8px; font-size: 0.78rem; color: var(--muted); }
 .offline-status.ready { color: var(--accent); }
 .offline-status.preparing { color: #a86a00; }
+.duration { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px; background: var(--card); }
+.duration button { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--bg, #f0f2ec); font-size: 1.3rem; font-weight: 700; }
+.duration button:disabled { opacity: 0.35; }
+.duration input { width: 64px; border: none; background: transparent; text-align: center; font-size: 1.15rem; font-weight: 700; direction: ltr; font-variant-numeric: tabular-nums; }
+.duration-unit { color: var(--muted); font-size: 0.85rem; margin-inline-end: 4px; }

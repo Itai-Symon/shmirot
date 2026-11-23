@@ -1,8 +1,6 @@
 import type { ActivitySettings } from '../storage/db'
 import { addWallHours, epochToWall, type PostConfig } from '../storage/shiftGenerator'
 
-export const SHIFT_HOURS = [1, 2, 3, 4] as const
-export const REST_HOURS = [2, 4, 6, 8] as const
 export const DURATION_HOURS = [12, 24, 48, 72, 168] as const
 
 export function deviceTimeZone(): string {

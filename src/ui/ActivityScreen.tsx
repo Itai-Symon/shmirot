@@ -14,8 +14,8 @@ const POST_WEIGHTS = [
   { id: 'normal', value: 1 },
   { id: 'hard', value: 1.3 },
 ] as const
-import { DURATION_HOURS, REST_HOURS, SHIFT_HOURS, defaultPost, deviceTimeZone } from './defaults'
-import { Chips, HourSelect, MinutesPicker, Stepper, Toggle } from './widgets'
+import { DURATION_HOURS, defaultPost, deviceTimeZone } from './defaults'
+import { Chips, DurationField, HourSelect, Stepper, Toggle } from './widgets'
 
 export function ActivityScreen(props: {
   settings: ActivitySettings
@@ -40,8 +40,11 @@ export function ActivityScreen(props: {
   const setEnd = (end: string) => end && set({ end, durationHours: null })
 
   const setPosts = (posts: PostConfig[]) => set({ posts })
-  const setPostCount = (n: number) =>
-    setPosts(n > s.posts.length ? [...s.posts, ...Array.from({ length: n - s.posts.length }, defaultPost)] : s.posts.slice(0, n))
+  const setPostCount = (n: number) => {
+    const next = n > s.posts.length ? [...s.posts, ...Array.from({ length: n - s.posts.length }, defaultPost)] : s.posts.slice(0, n)
+    // Difficulty only compares posts; with a single post it would just scale everyone equally.
+    setPosts(next.length === 1 ? next.map(({ weight: _w, ...p }) => p) : next)
+  }
   const patchPost = (i: number, patch: Partial<PostConfig>) =>
     setPosts(s.posts.map((p, j) => (j === i ? { ...p, ...patch } : p)))
   const setReq = (i: number, role: Role, n: number) =>
@@ -81,22 +84,11 @@ export function ActivityScreen(props: {
       <div className="card">
         <div className="field">
           <span>{t.activity.shiftLength}</span>
-          <MinutesPicker
-            hours={SHIFT_HOURS}
-            value={s.shiftMinutes}
-            label={t.activity.hours}
-            minutesLabel={t.activity.orMinutes}
-            onChange={(m) => set({ shiftMinutes: m })}
-          />
+          <DurationField value={s.shiftMinutes} label={t.activity.shiftLength} onChange={(m) => set({ shiftMinutes: m })} />
         </div>
         <div className="field">
           <span>{t.activity.rest}</span>
-          <Chips
-            options={REST_HOURS}
-            value={s.restMinutes / 60}
-            label={t.activity.hours}
-            onChange={(h) => set({ restMinutes: h * 60 })}
-          />
+          <DurationField value={s.restMinutes} label={t.activity.rest} min={0} max={24 * 60} onChange={(m) => set({ restMinutes: m })} />
         </div>
         <Toggle
           checked={s.split !== null}
@@ -109,11 +101,9 @@ export function ActivityScreen(props: {
           <div className="indent">
             <div className="field">
               <span>{t.activity.nightShiftLength}</span>
-              <MinutesPicker
-                hours={SHIFT_HOURS}
+              <DurationField
                 value={s.split.nightShiftMinutes}
-                label={t.activity.hours}
-                minutesLabel={t.activity.orMinutes}
+                label={t.activity.nightShiftLength}
                 onChange={(m) => set({ split: { ...s.split!, nightShiftMinutes: m } })}
               />
             </div>
@@ -163,6 +153,7 @@ export function ActivityScreen(props: {
               </div>
             ))}
           </div>
+          {s.posts.length > 1 && (
           <div className="field post-weight">
             <span>{t.activity.postWeight(String(p.weight ?? 1))}</span>
             <Chips
@@ -185,6 +176,7 @@ export function ActivityScreen(props: {
               <small>פי 2</small>
             </div>
           </div>
+          )}
           <Toggle
             checked={p.activeWindow !== null}
             onChange={(on) => patchPost(i, { activeWindow: on ? { fromHour: 20, toHour: 6 } : null })}
