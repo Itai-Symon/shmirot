@@ -35,9 +35,10 @@ export function compareShifts(a: Shift, b: Shift): number {
   return compareNumbers(a.start, b.start) || compareNumbers(a.postIndex, b.postIndex) || compareIds(a.id, b.id)
 }
 
-/** weight(j) = dayMinutes + α × nightMinutes. */
+/** weight(j) = (dayMinutes + α × nightMinutes) × weightFactor. */
 export function shiftWeight(shift: Shift, nightWeight: number): number {
-  return shift.end - shift.start - shift.nightMinutes + nightWeight * shift.nightMinutes
+  const f = shift.weightFactor !== undefined && Number.isFinite(shift.weightFactor) && shift.weightFactor > 0 ? shift.weightFactor : 1
+  return (shift.end - shift.start - shift.nightMinutes + nightWeight * shift.nightMinutes) * f
 }
 
 function isAbsent(soldier: Soldier, start: number, end: number): boolean {
@@ -253,12 +254,19 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
 
       // Lookahead seats cost BIG: among maximum matchings, fill as many seats of G as possible,
       // then minimise the rank sum of G (lexicographic objective, §4.4 c).
-      const BIG = nGroupSlots * candidates.length + 1
+      // Weight-aware seats (§4.4 c): seat cost = (rank + 1) × weight class of the seat, where
+      // the weight class is the dense rank of the seat's shift weight within G (1 = lightest).
+      // Minimising Σ cost pairs the best-ranked soldiers with the heaviest seats
+      // (rearrangement inequality); with equal weights it is the plain rank sum.
+      const groupWeights = [...new Set(slots.slice(0, nGroupSlots).map((sl) => weight[sl.pos]))].sort((x, y) => x - y)
+      const weightClass = (k: number) => groupWeights.indexOf(weight[slots[k].pos]) + 1
+      const seatCost = (soldier: number, k: number) => (rank[soldier] + 1) * weightClass(k)
+      const BIG = nGroupSlots * (candidates.length + 1) * Math.max(1, groupWeights.length) + 1
       const allEdges: MatchingEdge[] = []
       slots.forEach((slot, k) => {
         for (let i = 0; i < nSoldiers; i++) {
           if (!eligible(i, slot)) continue
-          allEdges.push({ left: k, right: i, cost: slot.inGroup ? rank[i] : BIG })
+          allEdges.push({ left: k, right: i, cost: slot.inGroup ? seatCost(i, k) : BIG })
         }
       })
 
@@ -298,10 +306,10 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
           removedSlot[k] = true
           removedSoldier[soldier] = true
           const r = residual()
-          if (r.size + fixedSize + 1 === best.size && r.cost + fixedCost + rank[soldier] === best.cost) {
+          if (r.size + fixedSize + 1 === best.size && r.cost + fixedCost + seatCost(soldier, k) === best.cost) {
             chosen[k] = soldier
             fixedSize++
-            fixedCost += rank[soldier]
+            fixedCost += seatCost(soldier, k)
             placedHere = true
             break
           }

@@ -39,6 +39,18 @@ describe('Claim 5 — hours balance in aligned schedules', () => {
     )
   })
 
+  it('post weights: heavier posts go to the lowest load, bound still w_max (R = 0)', () => {
+    fc.assert(
+      fc.property(claim5Arb('zero'), fc.array(fc.constantFrom(0.5, 0.8, 1, 1.3, 2), { minLength: 3, maxLength: 3 }), (input, factors) => {
+        const weighted = { ...input, shifts: input.shifts.map((s) => ({ ...s, weightFactor: factors[s.postIndex % factors.length] })) }
+        const out = runAndVerify(weighted)
+        expect(out.shortages).toEqual([])
+        assertBalanced(weighted, out)
+      }),
+      { seed: 5003, numRuns: 150 },
+    )
+  })
+
   // R > 0 is deliberately not asserted: with rest first (D3) a lowest-load soldier who is
   // still resting is skipped, which can exceed w_max. ALGORITHM.md §5 Claim 5 therefore only
   // claims the bound when rest never excludes a candidate (R = 0). R > 0 balance is measured

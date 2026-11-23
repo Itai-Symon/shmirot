@@ -220,3 +220,23 @@ describe('generateShifts', () => {
     )
   })
 })
+
+describe('post weight and free shift length', () => {
+  it('90-minute shifts and a post weight become shift lengths and weightFactor', () => {
+    const g = generateShifts({
+      start: '2026-12-01T20:00',
+      end: '2026-12-02T02:00',
+      timeZone: 'Asia/Jerusalem',
+      shiftMinutes: 90,
+      split: null,
+      posts: [
+        { requirements: { soldier: 1 }, activeWindow: null, weight: 1.3 },
+        { requirements: { soldier: 1 }, activeWindow: null },
+      ],
+    })
+    const p0 = g.shifts.filter((s) => s.postIndex === 0)
+    expect(p0.map((s) => s.end - s.start)).toEqual([90, 90, 90, 90])
+    expect(p0.every((s) => s.weightFactor === 1.3)).toBe(true)
+    expect(g.shifts.filter((s) => s.postIndex === 1).every((s) => s.weightFactor === undefined)).toBe(true)
+  })
+})

@@ -54,13 +54,14 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
   const totals = activityTotals({ plan, closedAtMinute: null }, nowMs)
 
   // Guard of every shift that started inside [from, until), counted whole.
-  const guard = new Map<SoldierId, { day: number; night: number; lastEnd: number; busyUntil: number | null }>()
+  const guard = new Map<SoldierId, { day: number; night: number; weighted: number; lastEnd: number; busyUntil: number | null }>()
   for (const a of plan.output.assignments) {
     const s = byId.get(a.shiftId)
     if (!s || s.start < from || s.start >= until) continue
-    const g = guard.get(a.soldierId) ?? { day: 0, night: 0, lastEnd: -Infinity, busyUntil: null }
+    const g = guard.get(a.soldierId) ?? { day: 0, night: 0, weighted: 0, lastEnd: -Infinity, busyUntil: null }
     g.night += s.nightMinutes
     g.day += s.end - s.start - s.nightMinutes
+    g.weighted += (s.end - s.start - s.nightMinutes + alpha * s.nightMinutes) * (s.weightFactor ?? 1)
     g.lastEnd = Math.max(g.lastEnd, s.end)
     if (s.end > until) g.busyUntil = Math.max(g.busyUntil ?? -Infinity, s.end)
     guard.set(a.soldierId, g)
@@ -75,7 +76,7 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
     field.set(t.soldierId, f)
     fieldSum += f
     const g = guard.get(t.soldierId)
-    if (g) weightedSum += g.day + alpha * g.night
+    if (g) weightedSum += g.weighted
   }
   const rate = fieldSum > 0 ? weightedSum / fieldSum : 0
 
@@ -86,7 +87,7 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
     if (g) {
       l.dayGuardMinutes += g.day
       l.nightGuardMinutes += g.night
-      l.weightedLoad += g.day + alpha * g.night
+      l.weightedLoad += g.weighted
       l.lastEndMs = startMs + g.lastEnd * MIN_MS
       l.busyUntilMs = g.busyUntil === null ? null : startMs + g.busyUntil * MIN_MS
     }
@@ -130,12 +131,11 @@ export function soldierNow(id: SoldierId, ledger: Ledger | undefined, plan: Plan
   if (plan && plan.soldierIds.includes(id)) {
     const t = activityTotals({ plan, closedAtMinute: null }, nowMs).find((x) => x.soldierId === id)
     if (t) {
-      const alpha = plan.settings.nightWeight ?? DEFAULT_PARAMS.nightWeight
       day += t.dayGuardMinutes
       night += t.nightGuardMinutes
       home += t.homeMinutes
       field += t.dayGuardMinutes + t.nightGuardMinutes + t.restMinutes
-      weighted += t.dayGuardMinutes + alpha * t.nightGuardMinutes
+      weighted += t.weightedGuardMinutes
     }
   }
   const guard = day + night

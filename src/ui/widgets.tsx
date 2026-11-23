@@ -81,3 +81,38 @@ export function Sheet(props: { onClose: () => void; children: ReactNode }) {
     </div>
   )
 }
+
+/** Hour chips plus a free minutes field (15-minute steps). */
+export function MinutesPicker(props: {
+  value: number
+  hours: readonly number[]
+  label: (h: number) => string
+  minutesLabel: string
+  onChange: (minutes: number) => void
+  min?: number
+  max?: number
+}) {
+  const min = props.min ?? 15
+  const max = props.max ?? 12 * 60
+  const chip = props.hours.find((h) => h * 60 === props.value) ?? null
+  return (
+    <div className="minutes-picker">
+      <Chips options={props.hours} value={chip} label={props.label} onChange={(h) => props.onChange(h * 60)} />
+      <label className="inline">
+        <span className="muted">{props.minutesLabel}</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={min}
+          max={max}
+          step={15}
+          value={props.value}
+          onChange={(e) => {
+            const v = Math.round(Number(e.target.value))
+            if (Number.isFinite(v) && v >= min && v <= max) props.onChange(v)
+          }}
+        />
+      </label>
+    </div>
+  )
+}

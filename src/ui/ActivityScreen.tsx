@@ -8,8 +8,14 @@ import { LABEL_MAX, cleanLabel, type RoleRecord } from './labels'
 import { FairnessPanel } from './FairnessPanel'
 import { NIGHT_WEIGHT_MAX, NIGHT_WEIGHT_MIN, NIGHT_WEIGHT_STEP, PRESETS, presetOf } from './fairness'
 import { DEFAULT_PARAMS } from '../solver/types'
+
+const POST_WEIGHTS = [
+  { id: 'easy', value: 0.8 },
+  { id: 'normal', value: 1 },
+  { id: 'hard', value: 1.3 },
+] as const
 import { DURATION_HOURS, REST_HOURS, SHIFT_HOURS, defaultPost, deviceTimeZone } from './defaults'
-import { Chips, HourSelect, Stepper, Toggle } from './widgets'
+import { Chips, HourSelect, MinutesPicker, Stepper, Toggle } from './widgets'
 
 export function ActivityScreen(props: {
   settings: ActivitySettings
@@ -75,11 +81,12 @@ export function ActivityScreen(props: {
       <div className="card">
         <div className="field">
           <span>{t.activity.shiftLength}</span>
-          <Chips
-            options={SHIFT_HOURS}
-            value={s.shiftMinutes / 60}
+          <MinutesPicker
+            hours={SHIFT_HOURS}
+            value={s.shiftMinutes}
             label={t.activity.hours}
-            onChange={(h) => set({ shiftMinutes: h * 60 })}
+            minutesLabel={t.activity.orMinutes}
+            onChange={(m) => set({ shiftMinutes: m })}
           />
         </div>
         <div className="field">
@@ -102,11 +109,12 @@ export function ActivityScreen(props: {
           <div className="indent">
             <div className="field">
               <span>{t.activity.nightShiftLength}</span>
-              <Chips
-                options={SHIFT_HOURS}
-                value={s.split.nightShiftMinutes / 60}
+              <MinutesPicker
+                hours={SHIFT_HOURS}
+                value={s.split.nightShiftMinutes}
                 label={t.activity.hours}
-                onChange={(h) => set({ split: { ...s.split!, nightShiftMinutes: h * 60 } })}
+                minutesLabel={t.activity.orMinutes}
+                onChange={(m) => set({ split: { ...s.split!, nightShiftMinutes: m } })}
               />
             </div>
             <div className="inline">
@@ -154,6 +162,28 @@ export function ActivityScreen(props: {
                 <Stepper value={p.requirements[r] ?? 0} max={9} onChange={(n) => setReq(i, r, n)} label={name} />
               </div>
             ))}
+          </div>
+          <div className="field post-weight">
+            <span>{t.activity.postWeight(String(p.weight ?? 1))}</span>
+            <Chips
+              options={POST_WEIGHTS.map((w) => w.value)}
+              value={POST_WEIGHTS.some((w) => w.value === (p.weight ?? 1)) ? (p.weight ?? 1) : null}
+              label={(v) => t.activity.postWeightPresets[POST_WEIGHTS.find((w) => w.value === v)!.id]}
+              onChange={(v) => patchPost(i, { weight: v })}
+            />
+            <div className="range-row">
+              <small>פי 0.5</small>
+              <input
+                type="range"
+                min={0.5}
+                max={2}
+                step={0.1}
+                value={p.weight ?? 1}
+                aria-label={t.activity.postWeight(String(p.weight ?? 1))}
+                onChange={(e) => patchPost(i, { weight: Math.round(Number(e.target.value) * 10) / 10 })}
+              />
+              <small>פי 2</small>
+            </div>
           </div>
           <Toggle
             checked={p.activeWindow !== null}

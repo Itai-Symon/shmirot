@@ -10,7 +10,7 @@
  * A shift in progress counts only its elapsed part. If the activity replaced a running one,
  * counting starts at `plan.countFromMs`, so overlapping time is never counted twice.
  */
-import type { Interval, Minutes, SoldierId } from '../solver/types'
+import { DEFAULT_PARAMS, type Interval, type Minutes, type SoldierId } from '../solver/types'
 import type { Plan } from '../storage/db'
 import { nightMinutes } from '../storage/shiftGenerator'
 
@@ -18,6 +18,8 @@ export interface SoldierTotals {
   soldierId: SoldierId
   dayGuardMinutes: Minutes
   nightGuardMinutes: Minutes
+  /** Guard minutes × night weight × post weight. */
+  weightedGuardMinutes: number
   restMinutes: Minutes
   homeMinutes: Minutes
   shifts: number
@@ -65,6 +67,8 @@ export function activityTotals(rec: Pick<ActivityRecord, 'plan' | 'closedAtMinut
   return plan.soldierIds.map((soldierId) => {
     let day = 0
     let night = 0
+    let weighted = 0
+    const alpha = plan.settings.nightWeight ?? DEFAULT_PARAMS.nightWeight
     let shifts = 0
     for (const a of plan.output.assignments) {
       if (a.soldierId !== soldierId) continue
@@ -76,6 +80,7 @@ export function activityTotals(rec: Pick<ActivityRecord, 'plan' | 'closedAtMinut
       const n = begin === s.start && end === s.end ? s.nightMinutes : nightMinutes(startMs + begin * MIN_MS, startMs + end * MIN_MS, tz)
       night += n
       day += total - n
+      weighted += (total - n + alpha * n) * (s.weightFactor ?? 1)
       // A shift that started before counting began was already counted in the replaced activity.
       if (s.start >= from) shifts++
     }
@@ -84,6 +89,7 @@ export function activityTotals(rec: Pick<ActivityRecord, 'plan' | 'closedAtMinut
       soldierId,
       dayGuardMinutes: day,
       nightGuardMinutes: night,
+      weightedGuardMinutes: weighted,
       homeMinutes: home,
       restMinutes: Math.max(0, until - from - home - day - night),
       shifts,
@@ -104,6 +110,7 @@ export function sumTotals(lists: SoldierTotals[][]): SoldierTotals[] {
               soldierId: t.soldierId,
               dayGuardMinutes: cur.dayGuardMinutes + t.dayGuardMinutes,
               nightGuardMinutes: cur.nightGuardMinutes + t.nightGuardMinutes,
+              weightedGuardMinutes: cur.weightedGuardMinutes + t.weightedGuardMinutes,
               restMinutes: cur.restMinutes + t.restMinutes,
               homeMinutes: cur.homeMinutes + t.homeMinutes,
               shifts: cur.shifts + t.shifts,

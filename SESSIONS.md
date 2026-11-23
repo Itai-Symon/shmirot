@@ -15,6 +15,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ✅ done |
 | 3.1 | Ledger per soldier carried into new boards, reset load, stats on platoon page (D7) | 3 | ✅ done |
 | 3.2 | Board score (before / on board / after, gap) and "why him?" per shift | 3.1 | ✅ done |
+| 3.3 | Post difficulty weight, weight-aware seats, free shift lengths | 3.2 | ✅ done |
 | 3.5 | Backup: export / import a file (next version) | 3 | ⬜ |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
@@ -158,6 +159,15 @@ when it ends; gap (max − min) before → after. Shown on the board and in the 
 exact solver input stored in `plan.input` and lists every soldier with status, rank, rest
 and distance from fair share (`WhySheet.tsx`). Tests: explanation agrees with the schedule,
 best-ranked are chosen, score arithmetic.
+
+## 3.3 — Post weight and free shift lengths
+**Status (done):** contract change — `Shift.weightFactor` (post difficulty) multiplies the shift
+weight; seat cost `(rank + 1) × weightClass` gives heavier seats to the best-ranked soldiers;
+Claim 5 extended to different weights in one group (proof in ALGORITHM.md). Verifier, oracle
+and helpers use the factor. UI: per post "קלה / רגילה / קשה" plus a ×0.5–×2 slider; shift and
+night-shift length as hour chips or free minutes (15-minute steps). Ledger and live stats
+count weighted guard with the factor. Test: post-weight Claim 5 property (fails without
+weight-aware seats), generator test for 90-minute shifts and weightFactor.
 
 ## 3.5 — Backup (next version, requested)
 Data lives only in the app's own storage on the phone. Deleting the home-screen icon or

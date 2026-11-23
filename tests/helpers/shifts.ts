@@ -89,5 +89,5 @@ export function makeInput(
 
 /** weight(j) = dayMinutes + α × nightMinutes (ALGORITHM.md §4.4). */
 export function weightOf(shift: Shift, nightWeight: number): number {
-  return shift.end - shift.start - shift.nightMinutes + nightWeight * shift.nightMinutes
+  return (shift.end - shift.start - shift.nightMinutes + nightWeight * shift.nightMinutes) * (shift.weightFactor ?? 1)
 }

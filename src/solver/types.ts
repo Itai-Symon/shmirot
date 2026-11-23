@@ -39,6 +39,11 @@ export interface Shift {
   end: Minutes
   /** Minutes of this shift inside 00:00–06:00 wall-clock. Precomputed by the shift generator. */
   nightMinutes: Minutes
+  /**
+   * Difficulty of this post (e.g. 1.3 outside, 0.8 at company HQ). Multiplies the shift's
+   * weight (§4.4). Missing ⇒ 1. Must be > 0.
+   */
+  weightFactor?: number
   /** How many soldiers of each role this shift needs. Missing role = 0. */
   requirements: Partial<Record<Role, number>>
 }

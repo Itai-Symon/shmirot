@@ -215,3 +215,6 @@ table.stats td.num { direction: ltr; text-align: right; }
 .why.chosen { border-color: var(--accent); }
 .why.absent, .why.unqualified, .why.busy { opacity: 0.65; }
 .why-btn { font-size: 0.8rem; padding: 2px 8px; min-height: 0; }
+.minutes-picker { display: grid; gap: 8px; }
+.minutes-picker input[type='number'] { width: 90px; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--card); direction: ltr; text-align: center; }
+.post-weight .range-row input[type='range'] { flex: 1; accent-color: var(--accent); }

@@ -82,7 +82,7 @@ export function bruteForce(input: SolverInput, options: OracleOptions = {}): Ora
     }
     const present = soldiers.map((s) => !s.absences.some((a) => a.start < shift.end && shift.start < a.end))
     const ok = open.map((role) => soldiers.map((s, i) => present[i] && s.roles.includes(role)))
-    const weight = shift.end - shift.start - shift.nightMinutes + alpha * shift.nightMinutes
+    const weight = (shift.end - shift.start - shift.nightMinutes + alpha * shift.nightMinutes) * (shift.weightFactor ?? 1)
     return { shift, weight, locked, open, ok }
   })
   const M = infos.length
@@ -220,7 +220,7 @@ export function measure(input: SolverInput, assignments: readonly Assignment[]):
       .sort((a, b) => a.start - b.start || a.end - b.end)
     for (let k = 0; k < mine.length; k++) {
       const sh = mine[k]
-      loads.set(s.id, loads.get(s.id)! + sh.end - sh.start - sh.nightMinutes + alpha * sh.nightMinutes)
+      loads.set(s.id, loads.get(s.id)! + (sh.end - sh.start - sh.nightMinutes + alpha * sh.nightMinutes) * (sh.weightFactor ?? 1))
       if (k > 0) minRest = Math.min(minRest, sh.start - mine[k - 1].end)
     }
   }

@@ -30,6 +30,8 @@ export interface HourWindow {
 export interface PostConfig {
   /** Optional user-given name (UI only; the solver sees postIndex). */
   name?: string
+  /** Difficulty multiplier (default 1). Becomes Shift.weightFactor. */
+  weight?: number
   requirements: Partial<Record<Role, number>>
   /** Post staffed only inside this wall-clock window; null ⇒ around the clock. */
   activeWindow: HourWindow | null
@@ -217,6 +219,7 @@ export function generateShifts(cfg: ActivityConfig): GeneratedActivity {
             start,
             end: toMinute(eMs),
             nightMinutes: nightMinutes(sMs, eMs, tz),
+            ...(post.weight !== undefined && post.weight !== 1 && post.weight > 0 && { weightFactor: post.weight }),
             requirements: { ...post.requirements },
           })
         }

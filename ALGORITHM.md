@@ -33,7 +33,8 @@ Status markers used below:
 - **Shift (משמרת)** – one concrete time interval at one post, with role requirements.
 - **Slot** – one seat in a shift that needs one soldier of a given role.
 - **Rest** – for two consecutive shifts of the same soldier: `start(next) − end(prev)`.
-- **Weight** of a shift – `dayMinutes + nightWeight × nightMinutes`.
+- **Weight** of a shift – `(dayMinutes + nightWeight × nightMinutes) × weightFactor`, where
+  `weightFactor` is the post's difficulty (default 1; e.g. 0.8 easy, 1.3 hard).
 
 All times inside the solver are **integer minutes since activity start** (real elapsed
 time). Converting wall-clock times (including DST transitions and midnight crossings)
@@ -173,9 +174,13 @@ INPUT: soldiers, shifts, params (R, α), locked
         1. maximise the number of filled slots (G + lookahead);
         2. among those, maximise the number of filled slots of G
            (never leave a seat of G empty to fill a lookahead seat);
-        3. among those, minimise the total cost (rank sum) of G's slots.
+        3. among those, minimise the total cost of G's slots, where seating soldier s in
+           a slot costs `(rank(s) + 1) × weightClass(slot)`; `weightClass` is the dense rank
+           of the slot's shift weight within G (1 = lightest). By the rearrangement
+           inequality this gives the heaviest seats to the best-ranked soldiers; with equal
+           weights it is the plain rank sum.
       Implemented as MIN-COST MAXIMUM matching (successive shortest paths) with
-      lookahead edges costing BIG = |G slots| · |candidates| + 1 instead of 0.
+      lookahead edges costing BIG = |G slots| · (|candidates| + 1) · #weightClasses + 1.
       By the transversal-matroid exchange property, (1) never reduces (2).
 
       TIE-BREAK among matchings that are optimal for 1–3: take the candidates in
@@ -196,7 +201,7 @@ INPUT: soldiers, shifts, params (R, α), locked
 4. Compute stats and the certificate (§6). Return.
 ```
 
-`weight(j) = (end_j − start_j − nightMinutes_j) + α × nightMinutes_j`.
+`weight(j) = ((end_j − start_j − nightMinutes_j) + α × nightMinutes_j) × weightFactor_j` (missing or non-positive factor ⇒ 1).
 
 `nextAbsenceStart[s]` – start of the soldier's next absence after `start_j`
 (∞ if none). Preferring soldiers who leave soon uses them before they go.
@@ -314,8 +319,8 @@ required role, nobody is absent, and rest never excludes a candidate (R = 0).
 *Why each condition is needed:* misaligned shifts make some soldiers busy when a group
 starts, so the lowest-loaded may be unavailable; with R > 0, rest-first (D3) skips a
 lowest-loaded soldier who is still resting. Both were observed to break the bound in
-property tests. Aligned shifts at one start time share the same interval and therefore
-the same weight, which the proof uses.
+property tests. Shifts starting together may have different weights (post difficulty);
+the proof covers that because heavier seats go to lower loads (§4.4 c).
 **Statement:** at all times, `max load − min load ≤ w_max`, where `w_max` is the largest
 shift weight.
 *Proof (induction).* Initially all loads are 0. Assume `max − min ≤ w_max` before a
@@ -325,6 +330,14 @@ load `≥ ℓ_k`; the minimum never decreases. If the new minimum is an unchosen
 new max − new min ≤ `max(old max − old min, w) ≤ w_max`. If it is a chosen soldier
 (old load m, now m + w), the new max is `≤ max(old max, ℓ_k + w)`, and
 `ℓ_k + w − (m + w) = ℓ_k − m ≤ old max − old min ≤ w_max`. ∎
+
+*With different weights in one group* (post difficulty): the chosen loads `l₁ ≤ … ≤ l_k`
+receive weights `w₁ ≥ … ≥ w_k` (heaviest to lowest, §4.4 c). For chosen i, m: if `i ≥ m`,
+`(l_i + w_i) − (l_m + w_m) ≤ l_i − l_m ≤ old spread`; if `i < m`, it is `≤ w_i − w_m ≤ w_max`.
+Against an unchosen j: `(l_i + w_i) − l_j ≤ w_i ≤ w_max`, and `l_j − (l_m + w_m) ≤ old spread`.
+So the spread stays `≤ w_max`. ∎ The opposite pairing (lightest seat to the lowest load) can
+reach old spread + w_max; a property test with post weights fails if the solver ignores seat
+weight, and passes with it.
 
 ### Claim 5′ — Balance from an uneven start (history). [PROVEN under Claim 5's conditions]
 With carried-in history and Claim 5's conditions, let `D₀` be the initial spread of
@@ -436,8 +449,6 @@ max coverage, best min rest, best load spread. Assert:
 - Per-soldier time preferences ("not before 06:00") — next version, as soft cost.
 - Multi-device sync (export/import file and QR only).
 - Rotating the night trap away when slack exists (v1 only warns).
-- Weight-aware seat choice: when shifts of different weights start together (misaligned
-  posts), the matching cost ranks soldiers but ignores which seat is heavier.
 - Manual pins of future shifts. The solver already applies locks interleaved in time
   and keeps a pinned soldier out of overlapping shifts (§4.4 step 2, 3a), but v1 has no
   UI for it and the contract only defines locks of already-started shifts (§3).

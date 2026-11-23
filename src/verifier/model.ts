@@ -12,7 +12,8 @@ export function overlaps(a: Interval, b: Interval): boolean {
 /** §2 / §4.4: weight(j) = dayMinutes + α × nightMinutes. */
 export function shiftWeight(shift: Shift, nightWeight: number): number {
   const length = shift.end - shift.start
-  return length - shift.nightMinutes + nightWeight * shift.nightMinutes
+  const factor = shift.weightFactor !== undefined && Number.isFinite(shift.weightFactor) && shift.weightFactor > 0 ? shift.weightFactor : 1
+  return (length - shift.nightMinutes + nightWeight * shift.nightMinutes) * factor
 }
 
 /** §4.3: present for j ⇔ not absent at any moment of [start_j, end_j). */
