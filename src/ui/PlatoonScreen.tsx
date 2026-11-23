@@ -213,6 +213,9 @@ export function PlatoonScreen(props: {
             ))}
           </ul>
           <p className="muted small-print">{t.platoon.statsHint}</p>
+          <p className="muted small-print">
+            <a href="./lab.html">{t.platoon.labLink}</a>
+          </p>
           <button
             type="button"
             className={confirmReset ? 'btn danger' : 'btn'}
