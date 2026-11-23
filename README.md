@@ -21,6 +21,14 @@ to keep fair over weeks, and every change (someone goes home) means starting ove
   possible and recorded as debt to be paid back.
 - **Provably fair:** see [ALGORITHM.md](ALGORITHM.md) for the algorithm, proofs and test plan.
 
+## Install on your phone
+Open **https://itai-symon.github.io/shmirot/** on the phone:
+- **Android (Chrome):** menu ⋮ → *Install app* / *Add to Home screen*.
+- **iPhone (Safari):** Share → *Add to Home Screen*.
+
+It then opens full-screen from its own icon, works in airplane mode, and keeps its data on
+the phone. Every push to `main` runs the tests and redeploys (`.github/workflows/deploy.yml`).
+
 ## Develop
 ```bash
 npm install
