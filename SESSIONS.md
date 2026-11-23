@@ -177,6 +177,12 @@ filled, ~0.1 s, min rest 2 h proven optimal (commander bottleneck), weighted gap
 group of interchangeable soldiers ≤ one shift, the two-board run identical to one board.
 Known weakness held as a ceiling: night-hours gap among plain soldiers 18 h.
 
+## 3.4b — Day/night balance mode (D8)
+User setting on the activity screen: "משוקלל" (default) or "בנפרד". Contract: `params.balance`,
+`SoldierHistory.day/night{Load,FairShare}`; solver ranks by day or night deviation (blended
+for mixed shifts); Claim 5ᴰᴺ with proof and property test; ledger tracks day/night parts.
+Month test, plain soldiers: weighted → night gap 18 h, day gap 26 h; separate → 6 h and 14 h.
+
 ## 3.5 — Backup (next version, requested)
 Data lives only in the app's own storage on the phone. Deleting the home-screen icon or
 moving to a new phone loses it. Add:

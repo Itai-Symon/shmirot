@@ -18,6 +18,11 @@ export interface Ledger {
   weightedLoad: number
   /** Weighted minutes the soldier should have guarded, proportional to field time. */
   fairShare: number
+  /** Day / night minutes × post weight, guarded and fair share (for 'separate' balance). */
+  dayLoad?: number
+  dayFairShare?: number
+  nightLoad?: number
+  nightFairShare?: number
   /** End of the last shift (epoch ms), for rest continuity. */
   lastEndMs: number | null
   /** Still in a shift until this instant (epoch ms). */
@@ -54,11 +59,13 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
   const totals = activityTotals({ plan, closedAtMinute: null }, nowMs)
 
   // Guard of every shift that started inside [from, until), counted whole.
-  const guard = new Map<SoldierId, { day: number; night: number; weighted: number; lastEnd: number; busyUntil: number | null }>()
+  const guard = new Map<SoldierId, { day: number; night: number; weighted: number; dayW: number; nightW: number; lastEnd: number; busyUntil: number | null }>()
   for (const a of plan.output.assignments) {
     const s = byId.get(a.shiftId)
     if (!s || s.start < from || s.start >= until) continue
-    const g = guard.get(a.soldierId) ?? { day: 0, night: 0, weighted: 0, lastEnd: -Infinity, busyUntil: null }
+    const g = guard.get(a.soldierId) ?? { day: 0, night: 0, weighted: 0, dayW: 0, nightW: 0, lastEnd: -Infinity, busyUntil: null }
+    g.dayW += (s.end - s.start - s.nightMinutes) * (s.weightFactor ?? 1)
+    g.nightW += s.nightMinutes * (s.weightFactor ?? 1)
     g.night += s.nightMinutes
     g.day += s.end - s.start - s.nightMinutes
     g.weighted += (s.end - s.start - s.nightMinutes + alpha * s.nightMinutes) * (s.weightFactor ?? 1)
@@ -69,6 +76,8 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
 
   // Fair share of this stretch: proportional to field time (load index definition).
   let weightedSum = 0
+  let daySum = 0
+  let nightSum = 0
   let fieldSum = 0
   const field = new Map<SoldierId, number>()
   for (const t of totals) {
@@ -76,9 +85,15 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
     field.set(t.soldierId, f)
     fieldSum += f
     const g = guard.get(t.soldierId)
-    if (g) weightedSum += g.weighted
+    if (g) {
+      weightedSum += g.weighted
+      daySum += g.dayW
+      nightSum += g.nightW
+    }
   }
   const rate = fieldSum > 0 ? weightedSum / fieldSum : 0
+  const dayRate = fieldSum > 0 ? daySum / fieldSum : 0
+  const nightRate = fieldSum > 0 ? nightSum / fieldSum : 0
 
   for (const t of totals) {
     const l = out.get(t.soldierId) ?? emptyLedger()
@@ -88,12 +103,16 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
       l.dayGuardMinutes += g.day
       l.nightGuardMinutes += g.night
       l.weightedLoad += g.weighted
+      l.dayLoad = (l.dayLoad ?? 0) + g.dayW
+      l.nightLoad = (l.nightLoad ?? 0) + g.nightW
       l.lastEndMs = startMs + g.lastEnd * MIN_MS
       l.busyUntilMs = g.busyUntil === null ? null : startMs + g.busyUntil * MIN_MS
     }
     l.homeMinutes += t.homeMinutes
     l.fieldMinutes += f
     l.fairShare += rate * f
+    l.dayFairShare = (l.dayFairShare ?? 0) + dayRate * f
+    l.nightFairShare = (l.nightFairShare ?? 0) + nightRate * f
     out.set(t.soldierId, l)
   }
   return out
@@ -106,6 +125,10 @@ export function toHistory(ledgers: ReadonlyMap<SoldierId, Ledger>, startEpochMs:
     soldierId,
     load: l.weightedLoad,
     fairShare: l.fairShare,
+    dayLoad: l.dayLoad ?? 0,
+    dayFairShare: l.dayFairShare ?? 0,
+    nightLoad: l.nightLoad ?? 0,
+    nightFairShare: l.nightFairShare ?? 0,
     lastEnd: rel(l.lastEndMs),
     busyUntil: rel(l.busyUntilMs),
   }))

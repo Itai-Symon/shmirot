@@ -212,6 +212,19 @@ export function ActivityScreen(props: {
 
       <div className="card">
         <h2>{t.fairness.title}</h2>
+        <div className="field">
+          <span>{t.fairness.balanceLabel}</span>
+          <div className="segmented small" role="tablist">
+            <button type="button" role="tab" aria-selected={s.balance !== 'separate'} onClick={() => set({ balance: 'weighted' })}>
+              {t.fairness.balanceWeighted}
+            </button>
+            <button type="button" role="tab" aria-selected={s.balance === 'separate'} onClick={() => set({ balance: 'separate' })}>
+              {t.fairness.balanceSeparate}
+            </button>
+          </div>
+          <small className="muted">{s.balance === 'separate' ? t.fairness.balanceSeparateHint : t.fairness.balanceWeightedHint}</small>
+        </div>
+        {s.balance !== 'separate' && (<>
         <Chips
           options={PRESETS.map((p) => p.id)}
           value={preset}
@@ -234,6 +247,7 @@ export function ActivityScreen(props: {
             <small>×{NIGHT_WEIGHT_MAX}</small>
           </div>
         </label>
+        </>)}
         <h3>{t.fairness.preview}</h3>
         <FairnessPanel output={props.preview?.output ?? null} busy={props.previewBusy} roles={roles} restMinutes={s.restMinutes} />
         {props.preview && <BoardScore plan={props.preview} soldiers={props.soldiers} />}

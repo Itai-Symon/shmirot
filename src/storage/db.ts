@@ -2,7 +2,7 @@
  * Local persistence (IndexedDB via Dexie). Nothing ever leaves the device (D6).
  */
 import Dexie, { type Table } from 'dexie'
-import type { Interval, Minutes, Role, SoldierHistory, SoldierId, SolverInput, SolverOutput } from '../solver/types'
+import type { BalanceMode, Interval, Minutes, Role, SoldierHistory, SoldierId, SolverInput, SolverOutput } from '../solver/types'
 import type { Ledger } from '../ui/ledger'
 import type { ActivityConfig, GeneratedActivity } from './shiftGenerator'
 import type { RoleRecord } from '../ui/labels'
@@ -24,6 +24,8 @@ export interface ActivitySettings extends ActivityConfig {
   restMinutes: Minutes
   /** Night weight α (ALGORITHM.md D2). Missing in older saved settings ⇒ default. */
   nightWeight?: number
+  /** Balance mode (D8). Missing ⇒ 'weighted'. */
+  balance?: BalanceMode
   /** Chosen duration chip in hours, or null when the end was set by hand. */
   durationHours: number | null
 }

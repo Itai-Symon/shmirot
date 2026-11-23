@@ -57,6 +57,7 @@ export function buildSolverInput(
       ...DEFAULT_PARAMS,
       minRestMinutes: plan.settings.restMinutes,
       nightWeight: plan.settings.nightWeight ?? DEFAULT_PARAMS.nightWeight,
+      ...(plan.settings.balance === 'separate' && { balance: 'separate' as const }),
     },
     locked,
   }

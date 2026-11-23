@@ -23,6 +23,7 @@ Status markers used below:
 | D5 | Infeasibility | **There is always a schedule.** Rest is a target, not a hard rule. The only hard rules are physical: no one assigned while absent, no one in two places at once, roles only filled by qualified soldiers. Unfillable slots are reported as *shortages*. |
 | D6 | Privacy and labels | *(revised after session 2)* Free text is allowed for soldier names, **post names** and **role names** (user-defined roles). Post and role names are short labels (max 16 characters) and every such field shows the hint "no locations, unit names or identifying details"; the responsibility is the user's, as with names. Posts without a name show as `עמדה N`. No notes fields. All data stays on the device. The solver never sees any name: soldiers, posts and roles reach it only as ids / indexes. |
 | D7 | Carry-over between boards *(added after session 3)* | Each soldier has a **ledger** of what he did before the current board (day/night guard, home, field time, weighted load, fair share, last shift). Replacing a board folds what happened on it into the ledgers; every new board starts from them (`SolverInput.history`, §4.2). The ledgers are kept across activities until the user presses **"reset load"**. **Load index** = weighted guard minutes ÷ minutes in the field; home time does not count (consistent with D1). |
+| D8 | Day / night balance mode *(added after session 3)* | The user chooses. **Weighted** (default): one load per soldier, a night minute counts ×α — more nights can be paid back with fewer day hours. **Separate**: day and night are balanced on their own (`params.balance = 'separate'`); α is not used for decisions. Post weight applies in both modes. |
 
 ---
 
@@ -115,6 +116,13 @@ is still in (no booking before it) and measures the first rest from `lastEnd`.
 **Output stats are of this schedule only**; the caller adds history for totals.
 
 `deviation = load − fairShare` (negative = owes nothing, should guard next).
+
+**Separate mode (D8).** The solver also keeps `dayLoad`, `nightLoad`, `dayFair`, `nightFair`
+(day and night minutes × post weight, no α; history may seed them). Fair share is split the
+same way as in §4.3, by part. For ranking a group G, `deviation` becomes
+`nf · (nightLoad − nightFair) + (1 − nf) · (dayLoad − dayFair)`, where `nf` is the share of
+night minutes among G's open seats (1 for a night group, 0 for a day group). Output stats
+stay α-weighted, as in weighted mode.
 
 ### 4.3 Fair share (decision D1)
 
@@ -339,6 +347,16 @@ So the spread stays `≤ w_max`. ∎ The opposite pairing (lightest seat to the 
 reach old spread + w_max; a property test with post weights fails if the solver ignores seat
 weight, and passes with it.
 
+### Claim 5ᴰᴺ — Separate balance. [PROVEN under conditions]
+**Conditions:** Claim 5's conditions, separate mode, and every shift is entirely day or
+entirely night. **Statement:** night loads stay within the largest night seat of each other,
+and day loads within the largest day seat, at all times. *Proof:* a night group ranks by night
+deviation only and changes only night loads (day groups likewise), and with nobody absent the
+fair-share increments are equal for all; so each kind runs Claim 5's induction on its own
+loads, with its own seats and heavier-seat-to-lower-load pairing. ∎ Mixed shifts (part day,
+part night) are blended by `nf` and not covered. *Enforced by:* property test; month-scale
+test measures both modes (plain soldiers, night-hours gap: weighted 18 h, separate 6 h).
+
 ### Claim 5′ — Balance from an uneven start (history). [PROVEN under Claim 5's conditions]
 With carried-in history and Claim 5's conditions, let `D₀` be the initial spread of
 deviations. Then at all times `max deviation − min deviation ≤ max(D₀, w_max)`.
@@ -449,11 +467,9 @@ max coverage, best min rest, best load spread. Assert:
 - Per-soldier time preferences ("not before 06:00") — next version, as soft cost.
 - Multi-device sync (export/import file and QR only).
 - Rotating the night trap away when slack exists (v1 only warns).
-- Balancing night hours directly. Weighted load is balanced (nights count ×α), but the
-  number of night hours is not a goal of its own: in the month-scale test (30 soldiers,
-  5 posts, 30 days) the weighted gap between interchangeable soldiers is within one shift,
-  while their night hours differ by up to 18 h. Candidate fix: a night-deviation tie-break or
-  a secondary objective; the scale test holds the current value as a ceiling.
+- In weighted mode, night hours are balanced only through α (by design, D8): in the
+  month-scale test interchangeable soldiers differ by up to 18 night hours, paid back in day
+  hours. Users who want nights split evenly choose separate mode (6 h in the same test).
 - Manual pins of future shifts. The solver already applies locks interleaved in time
   and keeps a pinned soldier out of overlapping shifts (§4.4 step 2, 3a), but v1 has no
   UI for it and the contract only defines locks of already-started shifts (§3).

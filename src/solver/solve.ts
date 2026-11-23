@@ -119,6 +119,11 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
     if (!soldierOfId.has(s.id)) soldierOfId.set(s.id, i)
   })
   const weight = shifts.map((s) => shiftWeight(s, alpha))
+  // 'separate' balance (D8): day and night parts of each shift, × post weight, no α.
+  const separate = params.balance === 'separate'
+  const factorOf = (s: Shift) => (s.weightFactor !== undefined && Number.isFinite(s.weightFactor) && s.weightFactor > 0 ? s.weightFactor : 1)
+  const nightPart = shifts.map((s) => s.nightMinutes * factorOf(s))
+  const dayPart = shifts.map((s) => (s.end - s.start - s.nightMinutes) * factorOf(s))
   const qualified = soldiers.map((s) => new Set<Role>(s.roles))
 
   // ---- Locks: validated, de-duplicated, grouped by shift (applied interleaved, §4.4 step 2).
@@ -153,6 +158,10 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
   const fairShare = new Array<number>(nSoldiers).fill(0)
   const lastEnd = new Array<number>(nSoldiers).fill(-Infinity)
   const busyUntil = new Array<number>(nSoldiers).fill(-Infinity)
+  const dayLoad = new Array<number>(nSoldiers).fill(0)
+  const nightLoad = new Array<number>(nSoldiers).fill(0)
+  const dayFair = new Array<number>(nSoldiers).fill(0)
+  const nightFair = new Array<number>(nSoldiers).fill(0)
   // Carried-in history (§4.2): starting load, fair share, last shift end, still-busy-until.
   for (const h of input.history ?? []) {
     const i = soldierOfId.get(h.soldierId)
@@ -161,6 +170,11 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
     if (Number.isFinite(h.fairShare)) fairShare[i] = h.fairShare
     if (h.lastEnd !== null && Number.isFinite(h.lastEnd)) lastEnd[i] = h.lastEnd
     if (h.busyUntil !== null && Number.isFinite(h.busyUntil)) busyUntil[i] = h.busyUntil
+    const num = (x: number | undefined) => (x !== undefined && Number.isFinite(x) ? x : 0)
+    dayLoad[i] = num(h.dayLoad)
+    dayFair[i] = num(h.dayFairShare)
+    nightLoad[i] = num(h.nightLoad)
+    nightFair[i] = num(h.nightFairShare)
   }
   const initialLoad = [...load]
   const initialFairShare = [...fairShare]
@@ -173,6 +187,8 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
     const shift = shifts[pos]
     const restDebt = lastEnd[soldier] === -Infinity ? 0 : Math.max(0, R - (shift.start - lastEnd[soldier]))
     load[soldier] += weight[pos]
+    dayLoad[soldier] += dayPart[pos]
+    nightLoad[soldier] += nightPart[pos]
     lastEnd[soldier] = shift.end
     busyUntil[soldier] = shift.end
     placed.push({ pos, soldier, role, restDebt, locked })
@@ -227,6 +243,18 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
       }
     }
 
+    // Deviation used for ranking (§4.4 b, D8). In 'separate' mode it is the night deviation
+    // for night seats and the day deviation for day seats, blended by G's night fraction.
+    let gNight = 0
+    let gAll = 0
+    for (let k = 0; k < nGroupSlots; k++) {
+      gNight += nightPart[slots[k].pos]
+      gAll += nightPart[slots[k].pos] + dayPart[slots[k].pos]
+    }
+    const nf = gAll > 0 ? gNight / gAll : 0
+    const deviationOf = (i: number) =>
+      separate ? nf * (nightLoad[i] - nightFair[i]) + (1 - nf) * (dayLoad[i] - dayFair[i]) : load[i] - fairShare[i]
+
     const chosen: (number | null)[] = new Array<number | null>(nGroupSlots).fill(null)
     if (nGroupSlots > 0) {
       const eligible = (soldier: number, slot: Slot) =>
@@ -241,7 +269,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
           soldier: i,
           key: {
             tier: rest >= R ? 0 : 1,
-            deviation: load[i] - fairShare[i],
+            deviation: deviationOf(i),
             rest,
             nextAbsenceStart: nextAbsenceStart(i, t),
             id: soldiers[i].id,
@@ -332,7 +360,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
         for (let i = 0; i < nSoldiers; i++) {
           if (!slotsForRank.some((sl) => qualified[i].has(sl.role) && available(i, sl.pos))) continue
           const rest = t - lastEnd[i]
-          cands.push({ soldier: i, key: { tier: rest >= R ? 0 : 1, deviation: load[i] - fairShare[i], rest, nextAbsenceStart: nextAbsenceStart(i, t), id: soldiers[i].id } })
+          cands.push({ soldier: i, key: { tier: rest >= R ? 0 : 1, deviation: deviationOf(i), rest, nextAbsenceStart: nextAbsenceStart(i, t), id: soldiers[i].id } })
         }
         cands.sort((x, y) => compareCandidateKeys(x.key, y.key))
         cands.forEach((c, r) => {
@@ -385,7 +413,13 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
       for (let i = 0; i < nSoldiers; i++) if (!isAbsent(soldiers[i], shift.start, shift.end)) present.push(i)
       if (present.length === 0) continue
       const inc = (weight[p] * filled) / present.length
-      for (const i of present) fairShare[i] += inc
+      const dayInc = (dayPart[p] * filled) / present.length
+      const nightInc = (nightPart[p] * filled) / present.length
+      for (const i of present) {
+        fairShare[i] += inc
+        dayFair[i] += dayInc
+        nightFair[i] += nightInc
+      }
     }
 
     a = b

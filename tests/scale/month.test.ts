@@ -40,7 +40,7 @@ const posts: PostConfig[] = [
   { requirements: { medic: 1 }, activeWindow: { fromHour: 6, toHour: 22 } }, // aid station, daytime
 ]
 
-function month(): SolverInput {
+function month(balance: 'weighted' | 'separate' = 'weighted'): SolverInput {
   const g = generateShifts({
     start: '2026-12-01T20:00',
     end: '2026-12-31T20:00',
@@ -49,7 +49,7 @@ function month(): SolverInput {
     split: { fromHour: 22, toHour: 6, nightShiftMinutes: 120 },
     posts,
   })
-  return { soldiers: platoon(), shifts: g.shifts, params: { minRestMinutes: 240, nightWeight: 1.5 }, locked: [] }
+  return { soldiers: platoon(), shifts: g.shifts, params: { minRestMinutes: 240, nightWeight: 1.5, balance }, locked: [] }
 }
 
 /** Weighted hours per soldier, minus his share in proportion to time in the field. */
@@ -66,6 +66,11 @@ function fairness(input: SolverInput, out: SolverOutput, hist: SoldierHistory[] 
   const totalField = [...field.values()].reduce((a, b) => a + b, 0)
   const dev = new Map(input.soldiers.map((s) => [s.id, (load.get(s.id)! - (totalLoad * field.get(s.id)!) / totalField) / 60]))
   const night = new Map(out.stats.map((s) => [s.soldierId, s.nightMinutes / 60]))
+  const dayH = new Map(out.stats.map((s) => [s.soldierId, 0]))
+  for (const a of out.assignments) {
+    const sh = byId.get(a.shiftId)!
+    dayH.set(a.soldierId, dayH.get(a.soldierId)! + (sh.end - sh.start - sh.nightMinutes) / 60)
+  }
   // Soldiers with the same roles are interchangeable; scarce roles (commanders, medics) carry
   // extra load by necessity, so fairness is judged within each group of identical role sets.
   const groups = new Map<string, string[]>()
@@ -79,6 +84,7 @@ function fairness(input: SolverInput, out: SolverOutput, hist: SoldierHistory[] 
     size: ids.length,
     gapHours: gap(ids, dev),
     nightGapHours: gap(ids, night),
+    dayGapHours: gap(ids, dayH),
     avgAboveHours: ids.reduce((n, i) => n + dev.get(i)!, 0) / ids.length,
   }))
   return {
@@ -99,7 +105,7 @@ function summary(label: string, input: SolverInput, out: SolverOutput, ms: numbe
       `  min rest ${(c.achievedMinRestMinutes ?? 0) / 60} h (upper bound ${c.upperBoundMinRestMinutes === null ? 'n/a' : c.upperBoundMinRestMinutes / 60} h, proven optimal: ${c.provenOptimal})\n` +
       `  largest single shift ${f.wMaxHours.toFixed(1)} weighted h\n` +
       f.byGroup
-        .map((g) => `  ${g.roles.padEnd(17)} ×${String(g.size).padStart(2)}: gap ${g.gapHours.toFixed(1)} h, night gap ${g.nightGapHours.toFixed(1)} h, avg vs whole platoon ${g.avgAboveHours >= 0 ? '+' : ''}${g.avgAboveHours.toFixed(1)} h\n`)
+        .map((g) => `  ${g.roles.padEnd(17)} ×${String(g.size).padStart(2)}: weighted gap ${g.gapHours.toFixed(1)} h, day gap ${g.dayGapHours.toFixed(1)} h, night gap ${g.nightGapHours.toFixed(1)} h, avg vs whole platoon ${g.avgAboveHours >= 0 ? '+' : ''}${g.avgAboveHours.toFixed(1)} h\n`)
         .join('') +
       `  warnings: ${out.warnings.map((w) => w.code + (w.role ? `(${w.role})` : '')).join(', ') || 'none'}\n`,
   )
@@ -112,7 +118,7 @@ function summary(label: string, input: SolverInput, out: SolverOutput, ms: numbe
  * known weakness: weighted load is balanced, nights only through the weight; 18 h is the
  * measured value at the time of writing (ALGORITHM.md §9).
  */
-const BOUNDS = { solveMs: 15_000, nightGapHours: 18 }
+const BOUNDS = { solveMs: 15_000, nightGapHours: 18, separateNightGapHours: 6, separateDayGapHours: 14 }
 
 describe('scale: 30 soldiers · 5 posts · 30 days', () => {
   it('one board for the whole month', () => {
@@ -130,6 +136,17 @@ describe('scale: 30 soldiers · 5 posts · 30 days', () => {
     expect(ms).toBeLessThan(BOUNDS.solveMs)
     expect(f.gapHours).toBeLessThanOrEqual(f.wMaxHours + 1e-9)
     expect(f.nightGapHours).toBeLessThanOrEqual(BOUNDS.nightGapHours)
+  }, 120_000)
+
+  it("'separate' balance: nights and days each balanced within interchangeable soldiers", () => {
+    const input = month('separate')
+    const out = runAndVerify(input)
+    const f = fairness(input, out)
+    summary("one board, whole month, balance = 'separate'", input, out, 0, f)
+    expect(out.shortages).toEqual([])
+    const plain = f.byGroup.find((g) => g.roles === 'soldier')!
+    expect(plain.nightGapHours).toBeLessThanOrEqual(BOUNDS.separateNightGapHours)
+    expect(plain.dayGapHours).toBeLessThanOrEqual(BOUNDS.separateDayGapHours)
   }, 120_000)
 
   it('board replaced mid-month, history carried over', () => {

@@ -48,11 +48,20 @@ export interface Shift {
   requirements: Partial<Record<Role, number>>
 }
 
+/**
+ * How fairness is judged (ALGORITHM.md §4.3, decision D8):
+ *  - 'weighted': one load per soldier; a night minute counts ×nightWeight (default);
+ *  - 'separate': day and night are balanced separately; nobody "pays" for nights with days.
+ */
+export type BalanceMode = 'weighted' | 'separate'
+
 export interface SolverParams {
   /** Rest target R (a target, not a hard rule — decision D5). */
   minRestMinutes: Minutes
-  /** Multiplier for night minutes (decision D2, default 1.5). */
+  /** Multiplier for night minutes (decision D2, default 1.5). Used for decisions in 'weighted' mode only. */
   nightWeight: number
+  /** Default 'weighted'. */
+  balance?: BalanceMode
 }
 
 export const DEFAULT_PARAMS: SolverParams = {
@@ -77,6 +86,11 @@ export interface SoldierHistory {
   load: number
   /** Weighted minutes this soldier should have guarded before this schedule (§4.3). */
   fairShare: number
+  /** 'separate' mode: day / night minutes × post weight, guarded and fair share. Missing ⇒ 0. */
+  dayLoad?: number
+  dayFairShare?: number
+  nightLoad?: number
+  nightFairShare?: number
   /** End of the soldier's last shift before this schedule; null if none. */
   lastEnd: Minutes | null
   /** The soldier is still in a shift that started before this schedule, until this minute. */

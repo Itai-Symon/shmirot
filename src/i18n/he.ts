@@ -126,6 +126,11 @@ export const he = {
     },
     nightWeight: (w: string) => `שעת לילה (בין חצות ל־06:00) שווה פי ${w} משעת יום`,
     preview: 'לפני יצירה',
+    balanceLabel: 'איך מאזנים לילות וימים?',
+    balanceWeighted: 'משוקלל',
+    balanceSeparate: 'בנפרד',
+    balanceWeightedHint: 'לילה שווה יותר שעות. מי שעשה יותר לילות יעשה פחות ימים.',
+    balanceSeparateHint: 'כל אחד מקבל חלק שווה מהלילות וחלק שווה מהימים. אין "תשלום" על לילה בשעות יום.',
     computing: 'מחשב…',
     provenOptimal: (h: string) => `מוכח אופטימלי: כל אחד נח לפחות ${h} ש׳ בין משמרות, ואי אפשר יותר`,
     provenBestBelowTarget: (h: string, target: string) =>
