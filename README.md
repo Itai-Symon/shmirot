@@ -17,6 +17,9 @@ to keep fair over weeks, and every change (someone goes home) means starting ove
 - **Offline & private:** runs on your phone, nothing leaves the device. Name your posts and
   define your own roles — short labels, and the app reminds you to keep locations and unit
   details out.
+- **Backup:** save everything to one file and restore it on any phone.
+- **Lab:** `lab.html` runs the real algorithm on example scenarios and shows input, output and
+  the independent verifier's verdict.
 - **Always a schedule:** when there aren't enough people, rest is shortened as evenly as
   possible and recorded as debt to be paid back.
 - **Light:** the whole app is 180 KB, opens in under 2 s on a slow phone profile and schedules

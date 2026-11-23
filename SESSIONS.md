@@ -16,7 +16,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 3.1 | Ledger per soldier carried into new boards, reset load, stats on platoon page (D7) | 3 | ✅ done |
 | 3.2 | Board score (before / on board / after, gap) and "why him?" per shift | 3.1 | ✅ done |
 | 3.3 | Post difficulty weight, weight-aware seats, free shift lengths | 3.2 | ✅ done |
-| 3.5 | Backup: export / import a file (next version) | 3 | ⬜ |
+| 3.5 | Backup: export / import a file | 3 | ✅ done |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
 | 5 | Launch: README + GIF, PROOF.md, live demo, CI | 4 | ⬜ |
@@ -183,7 +183,14 @@ User setting on the activity screen: "משוקלל" (default) or "בנפרד". C
 for mixed shifts); Claim 5ᴰᴺ with proof and property test; ledger tracks day/night parts.
 Month test, plain soldiers: weighted → night gap 18 h, day gap 26 h; separate → 6 h and 14 h.
 
-## 3.5 — Backup (next version, requested)
+## 3.5 — Backup
+**Status (done):** `src/storage/backup.ts` (format `shmirot-backup` v1: soldiers with ledgers,
+roles, settings, current board; whole-file validation, never a partial import),
+`src/ui/BackupCard.tsx` on the platoon page: share sheet on phones / download elsewhere,
+import with a preview and replace, "last backup" line that turns into a reminder after 14 days.
+Merge was left out on purpose (replace only). Tests: lossless round-trip, rejection cases.
+
+### Original plan
 Data lives only in the app's own storage on the phone. Deleting the home-screen icon or
 moving to a new phone loses it. Add:
 - **Export:** one JSON file with soldiers, roles, settings, current plan and history

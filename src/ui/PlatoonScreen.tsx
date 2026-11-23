@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { t } from '../i18n'
 import type { Role } from '../solver/types'
 import type { Plan, SoldierRecord } from '../storage/db'
@@ -13,6 +13,7 @@ function newId(): string {
 }
 
 export function PlatoonScreen(props: {
+  backup: ReactNode
   plan: Plan | undefined
   onResetLoad: () => void
   soldiers: SoldierRecord[]
@@ -235,6 +236,7 @@ export function PlatoonScreen(props: {
           </div>
         </>
       )}
+      {props.backup}
     </section>
   )
 }

@@ -110,6 +110,12 @@ export async function loadHistory(): Promise<ActivityRecord[]> {
 export const archiveActivity = (rec: ActivityRecord) => db.activities.put(rec)
 export const deleteActivity = (id: string) => db.activities.delete(id)
 
+export const loadLastBackup = () => getKv<number>('lastBackupAt')
+export const saveLastBackup = (ms: number) => putKv('lastBackupAt', ms)
+export async function clearPlan(): Promise<void> {
+  await db.kv.delete('plan')
+}
+
 /** Ordered list of the platoon's roles; undefined until the user first changes them. */
 export const loadRoles = () => getKv<RoleRecord[]>('roles')
 export const saveRoles = (r: RoleRecord[]) => putKv('roles', r)

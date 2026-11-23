@@ -6,6 +6,9 @@ import {
   type Plan,
   type SoldierRecord,
   loadPlan,
+  loadLastBackup,
+  saveLastBackup,
+  clearPlan,
   loadRoles,
   loadSettings,
   loadSoldiers,
@@ -24,6 +27,8 @@ import { defaultSettings } from './ui/defaults'
 import { createPlan, minuteAt, toggleHome } from './ui/planner'
 import { solveInWorker } from './ui/solverClient'
 import { useOfflineStatus } from './ui/offline'
+import { BackupCard } from './ui/BackupCard'
+import type { BackupFile } from './storage/backup'
 import { defaultRoles, type RoleRecord } from './ui/labels'
 
 type Tab = 'platoon' | 'activity' | 'board'
@@ -36,6 +41,7 @@ export default function App() {
   const [settings, setSettings] = useState<ActivitySettings>(() => defaultSettings(Date.now()))
   const [plan, setPlan] = useState<Plan | undefined>()
   const [roles, setRoles] = useState<RoleRecord[]>(defaultRoles)
+  const [lastBackup, setLastBackup] = useState<number | undefined>()
   const [preview, setPreview] = useState<Plan | null>(null)
   const [previewBusy, setPreviewBusy] = useState(false)
   const previewSeq = useRef(0)
@@ -50,8 +56,9 @@ export default function App() {
 
   useEffect(() => {
     requestPersistence()
-    Promise.all([loadSoldiers(), loadSettings(), loadPlan(), loadRoles()])
-      .then(([s, st, p, rl]) => {
+    Promise.all([loadSoldiers(), loadSettings(), loadPlan(), loadRoles(), loadLastBackup()])
+      .then(([s, st, p, rl, lb]) => {
+        setLastBackup(lb)
         setSoldiers(s)
         if (rl && rl.length) setRoles(rl)
         if (st) {
@@ -154,6 +161,19 @@ export default function App() {
     window.scrollTo(0, 0)
   }
 
+  /** Replace everything with a validated backup. */
+  const restore = (b: BackupFile) => {
+    updateSoldiers(b.soldiers)
+    setRoles(b.roles)
+    void saveRoles(b.roles)
+    if (b.settings) updateSettings(b.settings)
+    if (b.plan) updatePlan(b.plan)
+    else {
+      setPlan(undefined)
+      void clearPlan()
+    }
+  }
+
   /** "Reset load": everyone starts from zero; the current board counts only from now. */
   const resetLoad = () => {
     const nowMs = Date.now()
@@ -188,7 +208,20 @@ export default function App() {
           {t.offline[offline]}
         </p>
         {!ready ? null : tab === 'platoon' ? (
-          <PlatoonScreen plan={plan} onResetLoad={resetLoad} soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
+          <PlatoonScreen
+            backup={
+              <BackupCard
+                data={() => ({ soldiers, roles, settings, plan: plan ?? null })}
+                lastBackupMs={lastBackup}
+                onSaved={(ms) => {
+                  setLastBackup(ms)
+                  void saveLastBackup(ms)
+                }}
+                onRestore={restore}
+                toast={toast}
+              />
+            }
+            plan={plan} onResetLoad={resetLoad} soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (
           <ActivityScreen soldiers={soldiers} preview={preview} previewBusy={previewBusy} roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
         ) : (
