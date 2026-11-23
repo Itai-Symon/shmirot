@@ -6,6 +6,9 @@ import {
   type Plan,
   type SoldierRecord,
   loadPlan,
+  loadHistory,
+  archiveActivity,
+  deleteActivity,
   loadRoles,
   loadSettings,
   loadSoldiers,
@@ -17,13 +20,15 @@ import {
 } from './storage/db'
 import { ActivityScreen } from './ui/ActivityScreen'
 import { BoardScreen } from './ui/BoardScreen'
+import { StatsScreen } from './ui/StatsScreen'
+import { hasStarted, type ActivityRecord } from './ui/history'
 import { PlatoonScreen } from './ui/PlatoonScreen'
 import { defaultSettings } from './ui/defaults'
 import { createPlan, minuteAt, toggleHome } from './ui/planner'
 import { solveInWorker } from './ui/solverClient'
 import { defaultRoles, type RoleRecord } from './ui/labels'
 
-type Tab = 'platoon' | 'activity' | 'board'
+type Tab = 'platoon' | 'activity' | 'board' | 'stats'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -32,6 +37,7 @@ export default function App() {
   const [settings, setSettings] = useState<ActivitySettings>(() => defaultSettings(Date.now()))
   const [plan, setPlan] = useState<Plan | undefined>()
   const [roles, setRoles] = useState<RoleRecord[]>(defaultRoles)
+  const [history, setHistory] = useState<ActivityRecord[]>([])
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
 
@@ -43,8 +49,9 @@ export default function App() {
 
   useEffect(() => {
     requestPersistence()
-    Promise.all([loadSoldiers(), loadSettings(), loadPlan(), loadRoles()])
-      .then(([s, st, p, rl]) => {
+    Promise.all([loadSoldiers(), loadSettings(), loadPlan(), loadRoles(), loadHistory().catch(() => [])])
+      .then(([s, st, p, rl, h]) => {
+        setHistory(h)
         setSoldiers(s)
         if (rl && rl.length) setRoles(rl)
         if (st) {
@@ -110,6 +117,21 @@ export default function App() {
       if (result === 'errNoSoldiers') setTab('platoon')
       return
     }
+    // The replaced activity goes to history if it already started (its past is real).
+    const nowMs = Date.now()
+    if (plan && hasStarted(plan, nowMs)) {
+      const rec: ActivityRecord = {
+        id: plan.id ?? `legacy-${plan.generated.startEpochMs}`,
+        plan,
+        names: Object.fromEntries(soldiers.filter((s) => plan.soldierIds.includes(s.id)).map((s) => [s.id, s.name])),
+        closedAtMinute: minuteAt(plan, nowMs),
+      }
+      setHistory((h) => [...h.filter((x) => x.id !== rec.id), rec])
+      void archiveActivity(rec)
+      // Time already counted in the replaced activity is not counted again in the new one.
+      const closedMs = Math.min(nowMs, plan.generated.startEpochMs + plan.generated.endMinute * 60_000)
+      if (closedMs > result.generated.startEpochMs) result = { ...result, countFromMs: closedMs }
+    }
     updatePlan(result)
     setTab('board')
     window.scrollTo(0, 0)
@@ -140,6 +162,16 @@ export default function App() {
           <PlatoonScreen soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (
           <ActivityScreen roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
+        ) : tab === 'stats' ? (
+          <StatsScreen
+            plan={plan}
+            history={history}
+            soldiers={soldiers}
+            onDeleteActivity={(id) => {
+              setHistory((h) => h.filter((x) => x.id !== id))
+              void deleteActivity(id)
+            }}
+          />
         ) : (
           <BoardScreen
             plan={plan}
@@ -158,7 +190,7 @@ export default function App() {
       )}
 
       <nav className="tabs">
-        {(['platoon', 'activity', 'board'] as const).map((k) => (
+        {(['platoon', 'activity', 'board', 'stats'] as const).map((k) => (
           <button key={k} type="button" aria-current={tab === k ? 'page' : undefined} onClick={() => go(k)}>
             {t.nav[k]}
           </button>

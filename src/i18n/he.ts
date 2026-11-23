@@ -8,6 +8,7 @@ export const he = {
     platoon: 'מחלקה',
     activity: 'התחל פעילות',
     board: 'לוח',
+    stats: 'נתונים',
   },
 
   roles: {
@@ -101,6 +102,24 @@ export const he = {
     solverError: 'השיבוץ נכשל. נסו שוב.',
     endedNote: 'הפעילות הסתיימה',
     unknownSoldier: '?',
+  },
+
+  stats: {
+    title: 'נתוני חיילים',
+    all: 'כל הפעילויות',
+    current: 'נוכחית',
+    activity: (date: string, current: boolean) => (current ? `${date} · נוכחית` : date),
+    name: 'שם',
+    day: 'יום',
+    night: 'לילה',
+    rest: 'מנוחה',
+    home: 'בית',
+    shifts: 'משמרות',
+    empty: 'עוד אין נתונים. הנתונים מתחילים להיספר כשפעילות מתחילה.',
+    note: 'שעות שכבר עברו בפועל (שעות:דקות). משמרת באמצע נספרת עד עכשיו. לילה = 00:00–06:00. מנוחה = זמן בשטח בלי שמירה.',
+    removed: '(הוסר מהמחלקה)',
+    deleteActivity: 'מחק פעילות זו מההיסטוריה',
+    deleteConfirm: 'למחוק לצמיתות? ללחוץ שוב לאישור',
   },
 
   whatsapp: {

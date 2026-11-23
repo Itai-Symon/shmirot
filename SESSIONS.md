@@ -11,6 +11,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 1C | UI with fake solver | 0 | ✅ done |
 | 2 | Integration (real solver in Web Worker, all tests green) | 1A, 1B, 1C | ✅ done |
 | 2.5 | Custom post names and user-defined roles (D6 revised) | 2 | ✅ done |
+| 2.6 | Per-soldier history (day/night guard, rest, home) per activity and in total | 2.5 | ✅ done |
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ⬜ |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
@@ -108,6 +109,17 @@ post requirements), optional name per post, 16-char limit and privacy hint on ev
 field. Names live in `src/ui/labels.ts` and storage only; `Plan.roles` snapshots roles at
 creation. Tests: role-rename invariance property, roleOrder unit test, all-custom-roles
 platoon, planner test that no post/role name reaches the solver.
+
+## 2.6 — Per-soldier history
+**Status (done):** display only, never fed back into the solver (decision with the user).
+New tab "נתונים": per soldier day guard, night guard (00:00–06:00), rest (= time in the field
+without guarding), home time and shift count — per activity or summed over all activities.
+Counts only what actually happened up to now; a shift in progress counts its elapsed part.
+Storage: Dexie v2 table `activities`. Creating a new activity archives the current one if
+it started (`closedAtMinute`, name snapshot); if they overlap in time, the new one counts
+from the replacement moment (`Plan.countFromMs`) so nothing is counted twice. Past
+activities can be deleted from history. Logic in `src/ui/history.ts` with unit tests.
+Session 3's fairness screen should build on this tab rather than add another one.
 
 ## 3 — Fairness and transparency
 Fairness screen (hours, nights, deviation per soldier), presets (Balanced / Protect sleep /

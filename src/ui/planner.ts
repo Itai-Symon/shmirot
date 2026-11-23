@@ -12,6 +12,12 @@ import { t } from '../i18n'
 /** The solver as the planner sees it: the app passes a Web Worker client, tests pass solve(). */
 export type SolveAsync = (input: SolverInput) => Promise<SolverOutput>
 
+let activityCounter = 0
+function newActivityId(startEpochMs: number): string {
+  activityCounter += 1
+  return `a${startEpochMs.toString(36)}${Date.now().toString(36)}${activityCounter.toString(36)}`
+}
+
 export type PlanError = 'errNoSoldiers' | 'errEndBeforeStart' | 'errNoNeeds' | 'errNoShifts'
 
 export function validate(settings: ActivitySettings, soldiers: SoldierRecord[]): PlanError | null {
@@ -71,7 +77,7 @@ export async function createPlan(
   if (err) return err
   const generated = generateShifts(settings)
   if (generated.shifts.length === 0) return 'errNoShifts'
-  const base = { settings, generated, soldierIds: soldiers.map((s) => s.id), absences: {}, roles }
+  const base = { id: newActivityId(generated.startEpochMs), settings, generated, soldierIds: soldiers.map((s) => s.id), absences: {}, roles }
   return { ...base, output: await runSolver(solve, base, soldiers, [], null) }
 }
 

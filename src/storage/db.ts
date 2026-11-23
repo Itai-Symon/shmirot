@@ -5,6 +5,7 @@ import Dexie, { type Table } from 'dexie'
 import type { Interval, Minutes, Role, SoldierId, SolverOutput } from '../solver/types'
 import type { ActivityConfig, GeneratedActivity } from './shiftGenerator'
 import type { RoleRecord } from '../ui/labels'
+import type { ActivityRecord } from '../ui/history'
 
 export interface SoldierRecord {
   id: SoldierId
@@ -24,6 +25,13 @@ export interface ActivitySettings extends ActivityConfig {
 
 /** The current schedule shown on the board. */
 export interface Plan {
+  /** Activity id (missing in plans saved before history existed). */
+  id?: string
+  /**
+   * History counts this activity only from this instant. Set when it replaced an activity
+   * that was still running, so the overlapping time is not counted twice.
+   */
+  countFromMs?: number
   settings: ActivitySettings
   generated: GeneratedActivity
   /** Soldier ids that were part of the platoon when the plan was made. */
@@ -42,12 +50,19 @@ interface KvRow {
 class ShmirotDB extends Dexie {
   soldiers!: Table<SoldierRecord, SoldierId>
   kv!: Table<KvRow, string>
+  activities!: Table<ActivityRecord, string>
 
   constructor() {
     super('shmirot')
     this.version(1).stores({
       soldiers: 'id, order',
       kv: 'key',
+    })
+    // v2: history of past activities (per-soldier stats survive new activities).
+    this.version(2).stores({
+      soldiers: 'id, order',
+      kv: 'key',
+      activities: 'id',
     })
   }
 }
@@ -76,6 +91,14 @@ async function putKv(key: string, value: unknown): Promise<void> {
 export const loadSettings = () => getKv<ActivitySettings>('settings')
 export const saveSettings = (s: ActivitySettings) => putKv('settings', s)
 export const loadPlan = () => getKv<Plan>('plan')
+/** Past activities, oldest first. */
+export async function loadHistory(): Promise<ActivityRecord[]> {
+  const all = await db.activities.toArray()
+  return all.sort((a, b) => a.plan.generated.startEpochMs - b.plan.generated.startEpochMs)
+}
+export const archiveActivity = (rec: ActivityRecord) => db.activities.put(rec)
+export const deleteActivity = (id: string) => db.activities.delete(id)
+
 /** Ordered list of the platoon's roles; undefined until the user first changes them. */
 export const loadRoles = () => getKv<RoleRecord[]>('roles')
 export const saveRoles = (r: RoleRecord[]) => putKv('roles', r)
