@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { postName } from './labels'
+import { FairnessPanel } from './FairnessPanel'
 import { t } from '../i18n'
 import type { SoldierId } from '../solver/types'
 import type { Plan, SoldierRecord } from '../storage/db'
@@ -155,6 +156,8 @@ export function BoardScreen(props: {
           </button>
         )}
       </div>
+
+      <FairnessPanel output={plan.output} roles={plan.roles} restMinutes={plan.settings.restMinutes} compact />
 
       <div className="segmented" role="tablist">
         <button type="button" role="tab" aria-selected={view === 'post'} onClick={() => setView('post')}>

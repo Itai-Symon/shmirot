@@ -12,7 +12,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 2 | Integration (real solver in Web Worker, all tests green) | 1A, 1B, 1C | ✅ done |
 | 2.5 | Custom post names and user-defined roles (D6 revised) | 2 | ✅ done |
 | 2.6 | Per-soldier history (day/night guard, rest, home) per activity and in total | 2.5 | ✅ done |
-| 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ⬜ |
+| 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ✅ done |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
 | 5 | Launch: README + GIF, PROOF.md, live demo, CI | 4 | ⬜ |
@@ -125,6 +125,17 @@ Session 3's fairness screen should build on this tab rather than add another one
 Fairness screen (hours, nights, deviation per soldier), presets (Balanced / Protect sleep /
 Strict equality) and plain-language sliders, certificate ("proven optimal" badge), pre-flight
 warnings (role bottleneck, night trap, rest impossible).
+
+
+**Status (done):** night-weight presets (מאוזן ×1.5 / שמירה על שינה ×2 / שעה היא שעה ×1)
+plus a ×1–×3 slider on the activity screen, saved in `ActivitySettings.nightWeight` and passed
+to the solver. Rest stays on its own chips. Live pre-flight preview: the would-be plan is
+solved in the worker (debounced 300 ms) and shown as plain-Hebrew notices — certificate
+("proven optimal", or "best possible but below target", or "below the upper bound"), load
+spread, shortages, ROLE_BOTTLENECK (with the role's name), REST_DEBT, NIGHT_TRAP — ordered
+by cause. Board shows the certificate and warnings. "נתונים" tab has a second view,
+"מתוכנן": weighted load, deviation from fair share, nights, min rest, shifts for the current
+activity. Helpers in `src/ui/fairness.ts` (tested); `src/ui/FairnessPanel.tsx`.
 
 ## 5 — Launch
 README (Hebrew + English) with GIF, PROOF.md (Claims 4–5 + certificate, accessible language),

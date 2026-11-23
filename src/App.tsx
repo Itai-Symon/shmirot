@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from './i18n'
-import type { SoldierId } from './solver/types'
+import type { SoldierId, SolverOutput } from './solver/types'
 import {
   type ActivitySettings,
   type Plan,
@@ -38,6 +38,9 @@ export default function App() {
   const [plan, setPlan] = useState<Plan | undefined>()
   const [roles, setRoles] = useState<RoleRecord[]>(defaultRoles)
   const [history, setHistory] = useState<ActivityRecord[]>([])
+  const [preview, setPreview] = useState<SolverOutput | null>(null)
+  const [previewBusy, setPreviewBusy] = useState(false)
+  const previewSeq = useRef(0)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
 
@@ -66,6 +69,22 @@ export default function App() {
       .catch(() => undefined)
       .finally(() => setReady(true))
   }, [])
+
+  // Live pre-flight preview on the activity screen: solve the would-be plan (debounced, in the worker).
+  useEffect(() => {
+    if (tab !== 'activity') return
+    const seq = ++previewSeq.current
+    setPreviewBusy(true)
+    const timer = window.setTimeout(() => {
+      createPlan(settings, soldiers, solveInWorker, roles)
+        .then((r) => {
+          if (seq === previewSeq.current) setPreview(typeof r === 'string' ? null : r.output)
+        })
+        .catch(() => seq === previewSeq.current && setPreview(null))
+        .finally(() => seq === previewSeq.current && setPreviewBusy(false))
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [tab, settings, soldiers, roles])
 
   const updateSoldiers = (list: SoldierRecord[]) => {
     setSoldiers(list)
@@ -161,7 +180,7 @@ export default function App() {
         {!ready ? null : tab === 'platoon' ? (
           <PlatoonScreen soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (
-          <ActivityScreen roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
+          <ActivityScreen preview={preview} previewBusy={previewBusy} roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
         ) : tab === 'stats' ? (
           <StatsScreen
             plan={plan}

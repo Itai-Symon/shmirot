@@ -4,6 +4,9 @@ import type { Role } from '../solver/types'
 import type { ActivitySettings } from '../storage/db'
 import { addWallHours, type PostConfig } from '../storage/shiftGenerator'
 import { LABEL_MAX, cleanLabel, type RoleRecord } from './labels'
+import { FairnessPanel } from './FairnessPanel'
+import { NIGHT_WEIGHT_MAX, NIGHT_WEIGHT_MIN, NIGHT_WEIGHT_STEP, PRESETS, presetOf } from './fairness'
+import { DEFAULT_PARAMS, type SolverOutput } from '../solver/types'
 import { DURATION_HOURS, REST_HOURS, SHIFT_HOURS, defaultPost, deviceTimeZone } from './defaults'
 import { Chips, HourSelect, Stepper, Toggle } from './widgets'
 
@@ -13,6 +16,8 @@ export function ActivityScreen(props: {
   hasPlan: boolean
   onCreate: () => void
   roles: RoleRecord[]
+  preview: SolverOutput | null
+  previewBusy: boolean
 }) {
   const roles = props.roles
   const { settings: s, onChange } = props
@@ -33,6 +38,9 @@ export function ActivityScreen(props: {
     setPosts(s.posts.map((p, j) => (j === i ? { ...p, ...patch } : p)))
   const setReq = (i: number, role: Role, n: number) =>
     patchPost(i, { requirements: { ...s.posts[i].requirements, [role]: n } })
+
+  const nightWeight = s.nightWeight ?? DEFAULT_PARAMS.nightWeight
+  const preset = presetOf(nightWeight)
 
   const create = () => {
     if (props.hasPlan && !confirm) {
@@ -169,6 +177,34 @@ export function ActivityScreen(props: {
           )}
         </div>
       ))}
+
+      <div className="card">
+        <h2>{t.fairness.title}</h2>
+        <Chips
+          options={PRESETS.map((p) => p.id)}
+          value={preset}
+          label={(id) => t.fairness.presets[id]}
+          onChange={(id) => set({ nightWeight: PRESETS.find((p) => p.id === id)!.nightWeight })}
+        />
+        {preset && <small className="muted">{t.fairness.presetHints[preset]}</small>}
+        <label className="field">
+          <span>{t.fairness.nightWeight(String(nightWeight))}</span>
+          <div className="range-row">
+            <small>×{NIGHT_WEIGHT_MIN}</small>
+            <input
+              type="range"
+              min={NIGHT_WEIGHT_MIN}
+              max={NIGHT_WEIGHT_MAX}
+              step={NIGHT_WEIGHT_STEP}
+              value={nightWeight}
+              onChange={(e) => set({ nightWeight: Number(e.target.value) })}
+            />
+            <small>×{NIGHT_WEIGHT_MAX}</small>
+          </div>
+        </label>
+        <h3>{t.fairness.preview}</h3>
+        <FairnessPanel output={props.preview} busy={props.previewBusy} roles={roles} restMinutes={s.restMinutes} />
+      </div>
 
       <div className="sticky-action">
         {confirm && <p className="warn center">{t.activity.recreateConfirm}</p>}

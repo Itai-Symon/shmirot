@@ -52,7 +52,11 @@ export function buildSolverInput(
       .map((s) => ({ id: s.id, roles: [...s.roles], absences: plan.absences[s.id] ?? [] })),
     shifts,
     ...(plan.roles && { roles: plan.roles.map((r) => r.id) }),
-    params: { ...DEFAULT_PARAMS, minRestMinutes: plan.settings.restMinutes },
+    params: {
+      ...DEFAULT_PARAMS,
+      minRestMinutes: plan.settings.restMinutes,
+      nightWeight: plan.settings.nightWeight ?? DEFAULT_PARAMS.nightWeight,
+    },
     locked,
   }
 }

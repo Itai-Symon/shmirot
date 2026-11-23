@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { t } from '../i18n'
 import type { Plan, SoldierRecord } from '../storage/db'
 import { wallAt } from '../storage/shiftGenerator'
+import { FairnessPanel } from './FairnessPanel'
 import { activityTotals, sumTotals, type ActivityRecord, type SoldierTotals } from './history'
 
 const hm = (m: number) => `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')}`
@@ -15,6 +16,7 @@ export function StatsScreen(props: {
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [selected, setSelected] = useState<string>('all')
   const [confirm, setConfirm] = useState(false)
+  const [view, setView] = useState<'actual' | 'planned'>('actual')
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000)
     return () => window.clearInterval(timer)
@@ -42,9 +44,76 @@ export function StatsScreen(props: {
     t.stats.activity(wallAt(r.plan.generated.startEpochMs, 0, r.plan.settings.timeZone).date, r.current)
   const selectedRec = records.find((r) => r.id === selected)
 
+  const planned = props.plan
+    ? [...props.plan.output.stats]
+        .filter((x) => x.load > 0 || x.fairShare > 0)
+        .sort((a, b) => b.load - a.load || (names.get(a.soldierId) ?? '').localeCompare(names.get(b.soldierId) ?? '', 'he'))
+    : []
+  const sh = (m: number) => (m / 60).toFixed(1)
+  const signed = (m: number) => `${m > 0.05 * 60 ? '+' : m < -0.05 * 60 ? '−' : ''}${Math.abs(m / 60).toFixed(1)}`
+
+  const segmented = (
+    <div className="segmented small" role="tablist">
+      <button type="button" role="tab" aria-selected={view === 'actual'} onClick={() => setView('actual')}>
+        {t.stats.actual}
+      </button>
+      <button type="button" role="tab" aria-selected={view === 'planned'} onClick={() => setView('planned')}>
+        {t.stats.planned}
+      </button>
+    </div>
+  )
+
+  if (view === 'planned') {
+    return (
+      <section className="screen">
+        <h1>{t.stats.title}</h1>
+        {segmented}
+        {!props.plan ? (
+          <p className="muted center">{t.stats.noPlan}</p>
+        ) : (
+          <>
+            <FairnessPanel
+              output={props.plan.output}
+              roles={props.plan.roles}
+              restMinutes={props.plan.settings.restMinutes}
+            />
+            <div className="card stats-card">
+              <table className="stats">
+                <thead>
+                  <tr>
+                    <th>{t.stats.name}</th>
+                    <th>{t.stats.weighted}</th>
+                    <th>{t.stats.vsFair}</th>
+                    <th>{t.stats.night}</th>
+                    <th>{t.stats.minRestCol}</th>
+                    <th>{t.stats.shifts}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {planned.map((x) => (
+                    <tr key={x.soldierId}>
+                      <td>{names.get(x.soldierId) ?? '?'}</td>
+                      <td className="num">{sh(x.load)}</td>
+                      <td className="num">{signed(x.deviation)}</td>
+                      <td className="num">{sh(x.nightMinutes)}</td>
+                      <td className="num">{x.minRestMinutes === null ? '—' : sh(x.minRestMinutes)}</td>
+                      <td className="num">{x.shiftCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="muted small-print">{t.stats.plannedNote}</p>
+          </>
+        )}
+      </section>
+    )
+  }
+
   return (
     <section className="screen">
       <h1>{t.stats.title}</h1>
+      {segmented}
       {records.length > 0 && (
         <div className="chips small">
           {[{ id: 'all', text: t.stats.all }, ...records.map((r) => ({ id: r.id, text: label(r) }))].map((o) => (
@@ -86,11 +155,11 @@ export function StatsScreen(props: {
                     {names.get(x.soldierId) ?? '?'}
                     {!inPlatoon.has(x.soldierId) && <small className="muted"> {t.stats.removed}</small>}
                   </td>
-                  <td>{hm(x.dayGuardMinutes)}</td>
-                  <td>{hm(x.nightGuardMinutes)}</td>
-                  <td>{hm(x.restMinutes)}</td>
-                  <td>{hm(x.homeMinutes)}</td>
-                  <td>{x.shifts}</td>
+                  <td className="num">{hm(x.dayGuardMinutes)}</td>
+                  <td className="num">{hm(x.nightGuardMinutes)}</td>
+                  <td className="num">{hm(x.restMinutes)}</td>
+                  <td className="num">{hm(x.homeMinutes)}</td>
+                  <td className="num">{x.shifts}</td>
                 </tr>
               ))}
             </tbody>

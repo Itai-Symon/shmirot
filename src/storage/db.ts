@@ -19,6 +19,8 @@ export interface SoldierRecord {
 /** What the "התחל פעילות" screen edits. */
 export interface ActivitySettings extends ActivityConfig {
   restMinutes: Minutes
+  /** Night weight α (ALGORITHM.md D2). Missing in older saved settings ⇒ default. */
+  nightWeight?: number
   /** Chosen duration chip in hours, or null when the end was set by hand. */
   durationHours: number | null
 }
