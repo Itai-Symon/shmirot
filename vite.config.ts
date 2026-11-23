@@ -9,6 +9,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'] },
       manifest: {
         name: 'שמירות',
         short_name: 'שמירות',
@@ -18,7 +20,15 @@ export default defineConfig({
         display: 'standalone',
         theme_color: '#1f2a1f',
         background_color: '#ffffff',
-        icons: [{ src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' }],
+        start_url: './',
+        scope: './',
+        orientation: 'portrait',
+        icons: [
+          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },
+        ],
       },
     }),
   ],
