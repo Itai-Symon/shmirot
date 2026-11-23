@@ -1,1 +1,1 @@
-export { solve } from './solve'
+export { explain, solve } from './solve'

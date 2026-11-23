@@ -14,6 +14,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 2.6 | Per-soldier history (day/night guard, rest, home) per activity and in total | 2.5 | ✅ done |
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ✅ done |
 | 3.1 | Ledger per soldier carried into new boards, reset load, stats on platoon page (D7) | 3 | ✅ done |
+| 3.2 | Board score (before / on board / after, gap) and "why him?" per shift | 3.1 | ✅ done |
 | 3.5 | Backup: export / import a file (next version) | 3 | ⬜ |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
@@ -148,6 +149,15 @@ shift folded whole and kept busy; fair share proportional to field time; `toHist
 a "reset load" button (with confirm). The separate "נתונים" tab and multi-activity history were
 removed (decision with the user); the Dexie `activities` table is left unused.
 Tests: two-part solve = one solve, Claim 5′ bound, busy/rest from history, ledger unit tests.
+
+## 3.2 — Board score and "why him?"
+**Status (done):** `boardScore()` in `src/ui/fairness.ts`: per soldier distance from fair
+share before the board (from `plan.history`), weighted hours on the board, expected distance
+when it ends; gap (max − min) before → after. Shown on the board and in the live preview
+(`BoardScore.tsx`). Every shift row has "למה?": `explain()` (ALGORITHM.md §4.6) replays the
+exact solver input stored in `plan.input` and lists every soldier with status, rank, rest
+and distance from fair share (`WhySheet.tsx`). Tests: explanation agrees with the schedule,
+best-ranked are chosen, score arithmetic.
 
 ## 3.5 — Backup (next version, requested)
 Data lives only in the app's own storage on the phone. Deleting the home-screen icon or

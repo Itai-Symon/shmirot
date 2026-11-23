@@ -17,6 +17,8 @@ import {
   type SolverInput,
   type SolverOutput,
   type Warning,
+  type CandidateExplanation,
+  type ShiftExplanation,
 } from './types'
 
 /** Ids are compared by UTF-16 code units (never locale-dependent). */
@@ -84,6 +86,20 @@ interface Placed {
 }
 
 export function solve(input: SolverInput): SolverOutput {
+  return run(input, null).output
+}
+
+/**
+ * Replays the solver and reports, for one shift, every soldier's situation at the moment that
+ * shift was decided — taken from the solver's own state, so it cannot disagree with it.
+ * Returns null for an unknown shift id.
+ */
+export function explain(input: SolverInput, shiftId: string): ShiftExplanation | null {
+  return run(input, shiftId).explanation
+}
+
+function run(input: SolverInput, explainFor: string | null): { output: SolverOutput; explanation: ShiftExplanation | null } {
+  let explanation: ShiftExplanation | null = null
   const { soldiers, params } = input
   const R = params.minRestMinutes
   const alpha = params.nightWeight
@@ -296,6 +312,49 @@ export function solve(input: SolverInput): SolverOutput {
       }
     }
 
+    // Explanation (§4.6): snapshot before committing, from the same state the decision used.
+    const target = explainFor === null ? -1 : group.find((p) => shifts[p].id === explainFor) ?? -1
+    if (target !== -1) {
+      const rankOf = new Map<number, number>()
+      const keyOf = new Map<number, CandidateKey>()
+      const slotsForRank: Slot[] = slots.slice(0, nGroupSlots)
+      if (nGroupSlots > 0) {
+        // Same ranking as above (recomputed only for the explanation).
+        const cands: { soldier: number; key: CandidateKey }[] = []
+        for (let i = 0; i < nSoldiers; i++) {
+          if (!slotsForRank.some((sl) => qualified[i].has(sl.role) && available(i, sl.pos))) continue
+          const rest = t - lastEnd[i]
+          cands.push({ soldier: i, key: { tier: rest >= R ? 0 : 1, deviation: load[i] - fairShare[i], rest, nextAbsenceStart: nextAbsenceStart(i, t), id: soldiers[i].id } })
+        }
+        cands.sort((x, y) => compareCandidateKeys(x.key, y.key))
+        cands.forEach((c, r) => {
+          rankOf.set(c.soldier, r)
+          keyOf.set(c.soldier, c.key)
+        })
+      }
+      const roleOfChosen = new Map<number, { pos: number; role: Role }>()
+      for (let k = 0; k < nGroupSlots; k++) if (chosen[k] !== null) roleOfChosen.set(chosen[k]!, { pos: slots[k].pos, role: slots[k].role })
+      for (const l of locksByPos[target]) roleOfChosen.set(l.soldier, { pos: target, role: l.role })
+      const shift = shifts[target]
+      const needs = ROLES.filter((r) => requiredCount(shift, r) > 0)
+      const list: CandidateExplanation[] = soldiers.map((sol, i) => {
+        const c = roleOfChosen.get(i)
+        const key = keyOf.get(i)
+        const ranked = key
+          ? { rank: rankOf.get(i)!, rested: key.tier === 0, restMinutes: Number.isFinite(key.rest) ? key.rest : null, deviation: key.deviation }
+          : {}
+        if (c && c.pos === target) return { soldierId: sol.id, status: 'chosen', role: c.role, ...ranked }
+        if (c) return { soldierId: sol.id, status: 'other_post', role: c.role, ...ranked }
+        if (!needs.some((r) => qualified[i].has(r))) return { soldierId: sol.id, status: 'unqualified' }
+        if (isAbsent(sol, shift.start, shift.end)) return { soldierId: sol.id, status: 'absent' }
+        if (!available(i, target)) return { soldierId: sol.id, status: 'busy' }
+        return { soldierId: sol.id, status: 'not_chosen', ...ranked }
+      })
+      const order: Record<string, number> = { chosen: 0, other_post: 1, not_chosen: 1, busy: 2, absent: 3, unqualified: 4 }
+      list.sort((x, y) => order[x.status] - order[y.status] || (x.rank ?? Infinity) - (y.rank ?? Infinity) || compareIds(x.soldierId, y.soldierId))
+      explanation = { shiftId: shift.id, candidates: list }
+    }
+
     // Shortages (step d) and commits (step e).
     for (const p of group) {
       for (const role of ROLES) {
@@ -398,5 +457,5 @@ export function solve(input: SolverInput): SolverOutput {
   warnings.push(...nightTrap(shifts, assignments))
   warnings.push(...roleBottlenecks(soldiers, shifts, input.params.minRestMinutes, ROLES))
 
-  return { assignments, shortages, stats, certificate, warnings }
+  return { output: { assignments, shortages, stats, certificate, warnings }, explanation }
 }

@@ -1,6 +1,8 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { postName } from './labels'
 import { FairnessPanel } from './FairnessPanel'
+import { BoardScore } from './BoardScore'
+import { WhySheet } from './WhySheet'
 import { t } from '../i18n'
 import type { SoldierId } from '../solver/types'
 import type { Plan, SoldierRecord } from '../storage/db'
@@ -53,6 +55,7 @@ export function BoardScreen(props: {
   const nowMs = useNow()
   const [view, setView] = useState<View>('post')
   const [picked, setPicked] = useState<SoldierId | null>(null)
+  const [why, setWhy] = useState<{ id: string; label: string } | null>(null)
   const rows = useMemo(() => (plan ? boardRows(plan, soldiers) : []), [plan, soldiers])
   const rootRef = useRef<HTMLElement>(null)
   // Bring the running shift into view when the board opens or the view changes.
@@ -120,6 +123,11 @@ export function BoardScreen(props: {
           </div>
         </div>
         {current && <span className="now-badge">{t.board.nowLabel}</span>}
+        {plan.input && (
+          <button type="button" className="link why-btn" onClick={() => setWhy({ id: r.shiftId, label: `${r.startLabel}–${r.endLabel}` })}>
+            {t.fairness.why}
+          </button>
+        )}
       </li>
     )
   }
@@ -158,6 +166,7 @@ export function BoardScreen(props: {
       </div>
 
       <FairnessPanel output={plan.output} roles={plan.roles} restMinutes={plan.settings.restMinutes} compact />
+      <BoardScore plan={plan} soldiers={soldiers} />
 
       <div className="segmented" role="tablist">
         <button type="button" role="tab" aria-selected={view === 'post'} onClick={() => setView('post')}>
@@ -193,6 +202,8 @@ export function BoardScreen(props: {
       )}
 
       <p className="muted center small-print">{t.board.lockedHint}</p>
+
+      {why && <WhySheet plan={plan} shiftId={why.id} label={why.label} soldiers={soldiers} onClose={() => setWhy(null)} />}
 
       {picked && (
         <Sheet onClose={() => setPicked(null)}>

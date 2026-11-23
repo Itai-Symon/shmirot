@@ -174,6 +174,35 @@ export function roleOrder(input: Pick<SolverInput, 'roles' | 'soldiers' | 'shift
   return [...base, ...[...extra].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))]
 }
 
+/** Why each soldier did or did not get a shift (ALGORITHM.md §4.6). */
+export type CandidateStatus =
+  | 'chosen' //         got a seat in this shift
+  | 'other_post' //     got a seat in another shift starting at the same time
+  | 'not_chosen' //     eligible, ranked, but others ranked higher (or roles did not fit)
+  | 'absent' //         at home during the shift
+  | 'busy' //           still guarding another shift, or kept for a pinned one
+  | 'unqualified' //    has none of the roles this shift needs
+
+export interface CandidateExplanation {
+  soldierId: SoldierId
+  status: CandidateStatus
+  /** Role taken, for 'chosen'. */
+  role?: Role
+  /** For ranked soldiers (chosen / other_post / not_chosen): the §4.4 b key and rank (0 = first). */
+  rank?: number
+  rested?: boolean
+  /** Minutes since the soldier's last shift ended; null if he has not guarded yet. */
+  restMinutes?: number | null
+  /** load − fairShare in weighted minutes, history included. */
+  deviation?: number
+}
+
+export interface ShiftExplanation {
+  shiftId: ShiftId
+  /** Soldiers in display order: chosen first, then by rank, then the rest by status. */
+  candidates: CandidateExplanation[]
+}
+
 /** Must be deterministic: same input ⇒ identical output. */
 export type Solve = (input: SolverInput) => SolverOutput
 

@@ -209,3 +209,9 @@ table.stats td.num { direction: ltr; text-align: right; }
 .soldier-stats div { text-align: center; background: var(--bg, transparent); }
 .soldier-stats dt { font-size: 0.72rem; color: var(--muted); }
 .soldier-stats dd { margin: 0; font-weight: 600; font-size: 0.9rem; direction: ltr; }
+.score summary { cursor: pointer; line-height: 1.5; }
+.why-list { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; max-height: 55vh; overflow-y: auto; }
+.why { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.why.chosen { border-color: var(--accent); }
+.why.absent, .why.unqualified, .why.busy { opacity: 0.65; }
+.why-btn { font-size: 0.8rem; padding: 2px 8px; min-height: 0; }

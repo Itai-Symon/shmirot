@@ -2,7 +2,7 @@
  * Local persistence (IndexedDB via Dexie). Nothing ever leaves the device (D6).
  */
 import Dexie, { type Table } from 'dexie'
-import type { Interval, Minutes, Role, SoldierHistory, SoldierId, SolverOutput } from '../solver/types'
+import type { Interval, Minutes, Role, SoldierHistory, SoldierId, SolverInput, SolverOutput } from '../solver/types'
 import type { Ledger } from '../ui/ledger'
 import type { ActivityConfig, GeneratedActivity } from './shiftGenerator'
 import type { RoleRecord } from '../ui/labels'
@@ -47,6 +47,8 @@ export interface Plan {
   /** Roles (ids, names, order) when the plan was made. Missing in plans saved before custom roles. */
   roles?: RoleRecord[]
   output: SolverOutput
+  /** The exact solver input that produced `output` (for "why him?" replays). */
+  input?: SolverInput
 }
 
 interface KvRow {

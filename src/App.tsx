@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from './i18n'
-import type { SoldierId, SolverOutput } from './solver/types'
+import type { SoldierId } from './solver/types'
 import {
   type ActivitySettings,
   type Plan,
@@ -34,7 +34,7 @@ export default function App() {
   const [settings, setSettings] = useState<ActivitySettings>(() => defaultSettings(Date.now()))
   const [plan, setPlan] = useState<Plan | undefined>()
   const [roles, setRoles] = useState<RoleRecord[]>(defaultRoles)
-  const [preview, setPreview] = useState<SolverOutput | null>(null)
+  const [preview, setPreview] = useState<Plan | null>(null)
   const [previewBusy, setPreviewBusy] = useState(false)
   const previewSeq = useRef(0)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
@@ -74,7 +74,7 @@ export default function App() {
       const ledgers = foldedLedgers(Date.now())
       createPlan(settings, soldiers, solveInWorker, roles, (start) => toHistory(ledgers, start))
         .then((r) => {
-          if (seq === previewSeq.current) setPreview(typeof r === 'string' ? null : r.output)
+          if (seq === previewSeq.current) setPreview(typeof r === 'string' ? null : r)
         })
         .catch(() => seq === previewSeq.current && setPreview(null))
         .finally(() => seq === previewSeq.current && setPreviewBusy(false))
@@ -184,7 +184,7 @@ export default function App() {
         {!ready ? null : tab === 'platoon' ? (
           <PlatoonScreen plan={plan} onResetLoad={resetLoad} soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (
-          <ActivityScreen preview={preview} previewBusy={previewBusy} roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
+          <ActivityScreen soldiers={soldiers} preview={preview} previewBusy={previewBusy} roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
         ) : (
           <BoardScreen
             plan={plan}

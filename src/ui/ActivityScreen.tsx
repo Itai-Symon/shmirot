@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { t } from '../i18n'
 import type { Role } from '../solver/types'
-import type { ActivitySettings } from '../storage/db'
+import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
+import { BoardScore } from './BoardScore'
 import { addWallHours, type PostConfig } from '../storage/shiftGenerator'
 import { LABEL_MAX, cleanLabel, type RoleRecord } from './labels'
 import { FairnessPanel } from './FairnessPanel'
 import { NIGHT_WEIGHT_MAX, NIGHT_WEIGHT_MIN, NIGHT_WEIGHT_STEP, PRESETS, presetOf } from './fairness'
-import { DEFAULT_PARAMS, type SolverOutput } from '../solver/types'
+import { DEFAULT_PARAMS } from '../solver/types'
 import { DURATION_HOURS, REST_HOURS, SHIFT_HOURS, defaultPost, deviceTimeZone } from './defaults'
 import { Chips, HourSelect, Stepper, Toggle } from './widgets'
 
@@ -16,7 +17,8 @@ export function ActivityScreen(props: {
   hasPlan: boolean
   onCreate: () => void
   roles: RoleRecord[]
-  preview: SolverOutput | null
+  preview: Plan | null
+  soldiers: SoldierRecord[]
   previewBusy: boolean
 }) {
   const roles = props.roles
@@ -203,7 +205,8 @@ export function ActivityScreen(props: {
           </div>
         </label>
         <h3>{t.fairness.preview}</h3>
-        <FairnessPanel output={props.preview} busy={props.previewBusy} roles={roles} restMinutes={s.restMinutes} />
+        <FairnessPanel output={props.preview?.output ?? null} busy={props.previewBusy} roles={roles} restMinutes={s.restMinutes} />
+        {props.preview && <BoardScore plan={props.preview} soldiers={props.soldiers} />}
       </div>
 
       <div className="sticky-action">

@@ -3,7 +3,8 @@
  * Pure helpers — no React, no storage.
  */
 import { t } from '../i18n'
-import { DEFAULT_PARAMS, type Certificate, type SolverOutput } from '../solver/types'
+import { DEFAULT_PARAMS, type Certificate, type SoldierId, type SolverOutput } from '../solver/types'
+import type { Plan } from '../storage/db'
 import { roleName, type RoleRecord } from './labels'
 
 /** Night-weight presets. Rest is set separately (activity screen chips). */
@@ -78,4 +79,36 @@ export function loadSpreadHours(out: SolverOutput): number {
   const loads = out.stats.filter((s) => s.fairShare > 0 || s.load > 0).map((s) => s.load)
   if (loads.length < 2) return 0
   return (Math.max(...loads) - Math.min(...loads)) / 60
+}
+
+export interface ScoreRow {
+  soldierId: SoldierId
+  /** Weighted minutes above (+) / below (−) fair share before this board. */
+  before: number
+  /** Weighted minutes guarded on this board. */
+  onBoard: number
+  /** Expected deviation when this board ends. */
+  after: number
+}
+
+export interface BoardScore {
+  rows: ScoreRow[]
+  /** Max − min deviation, weighted minutes. */
+  spreadBefore: number
+  spreadAfter: number
+}
+
+/**
+ * Board score: each soldier's distance from his fair share before the board and when it ends.
+ * "Before" is the history the board was made with; "after" adds this board.
+ */
+export function boardScore(plan: Pick<Plan, 'history' | 'output' | 'soldierIds'>): BoardScore {
+  const hist = new Map((plan.history ?? []).map((h) => [h.soldierId, h.load - h.fairShare]))
+  const rows: ScoreRow[] = plan.soldierIds.map((id) => {
+    const st = plan.output.stats.find((x) => x.soldierId === id)
+    const before = hist.get(id) ?? 0
+    return { soldierId: id, before, onBoard: st?.load ?? 0, after: before + (st?.deviation ?? 0) }
+  })
+  const spread = (v: number[]) => (v.length < 2 ? 0 : Math.max(...v) - Math.min(...v))
+  return { rows, spreadBefore: spread(rows.map((r) => r.before)), spreadAfter: spread(rows.map((r) => r.after)) }
 }

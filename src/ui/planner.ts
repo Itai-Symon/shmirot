@@ -68,8 +68,9 @@ function runSolver(
   soldiers: SoldierRecord[],
   locked: LockedAssignment[],
   now: Minutes | null,
-): Promise<SolverOutput> {
-  return solve(buildSolverInput(plan, soldiers, locked, now))
+): Promise<{ output: SolverOutput; input: SolverInput }> {
+  const input = buildSolverInput(plan, soldiers, locked, now)
+  return solve(input).then((output) => ({ output, input }))
 }
 
 export async function createPlan(
@@ -92,7 +93,7 @@ export async function createPlan(
     roles,
     ...(history && { history: history(generated.startEpochMs) }),
   }
-  return { ...base, output: await runSolver(solve, base, soldiers, [], null) }
+  return { ...base, ...(await runSolver(solve, base, soldiers, [], null)) }
 }
 
 /** Minutes since activity start for a real instant (may be negative or past the end). */
@@ -129,7 +130,7 @@ export async function replan(plan: Plan, soldiers: SoldierRecord[], absences: Pl
     .filter((a) => started.has(a.shiftId))
     .map(({ shiftId, soldierId, role }) => ({ shiftId, soldierId, role }))
   const next = { ...plan, absences }
-  return { ...next, output: await runSolver(solve, next, soldiers, locked, now) }
+  return { ...next, ...(await runSolver(solve, next, soldiers, locked, now)) }
 }
 
 export function toggleHome(plan: Plan, soldiers: SoldierRecord[], id: SoldierId, now: Minutes, solve: SolveAsync): Promise<Plan> {

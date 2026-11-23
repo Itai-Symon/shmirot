@@ -221,6 +221,17 @@ starting exactly 24 h later. Details: `periodMinutes`, `nightSpreadMinutes`. Cla
 corollary says it is unavoidable when slack is zero; when slack exists, v1 still warns
 (rotating to avoid it is future work, §9).
 
+### 4.6 Explanations ("why him?")
+
+`explain(input, shiftId)` replays the solver and, at the moment the group containing that
+shift is decided (before committing), reports for every soldier: `chosen` (with role),
+`other_post` (seated in another shift of the same group), `not_chosen` (eligible but others
+ranked higher, or roles did not fit), `busy`, `absent` or `unqualified`; for ranked soldiers
+also the §4.4 b key (rested, minutes since last shift, deviation) and rank. It reads the
+solver's own state, so it cannot disagree with the schedule. *Enforced by:* property tests —
+the `chosen` set equals the schedule's assignments of that shift on random inputs, and in
+single-role aligned shifts the chosen soldiers are exactly the best-ranked eligible ones.
+
 ### 4.5 Why a matching and not "pick the K best"
 
 Example: a shift needs `{commander: 1, soldier: 1}`. Available: Dani (commander,
