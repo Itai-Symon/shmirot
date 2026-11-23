@@ -8,7 +8,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 0 | Contract: decisions, ALGORITHM.md, types.ts, repo skeleton | — | ✅ done |
 | 1A | Solver | 0 | ⬜ |
 | 1B | Verifier + oracle + property tests + edge cases | 0 | ⬜ |
-| 1C | UI with fake solver | 0 | ⬜ |
+| 1C | UI with fake solver | 0 | ✅ done |
 | 2 | Integration (real solver in Web Worker, all tests green) | 1A, 1B, 1C | ⬜ |
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ⬜ |
 | — | Pilot with a real platoon | 3 | ⬜ |
@@ -52,6 +52,14 @@ Worked example that must pass: soldiers א ב ג ד (role `soldier`), one post, 
 - Target: from opening the app to a list in the WhatsApp group in under 60 seconds.
 
 **Done when:** full flow works in the browser on a phone-sized viewport; build green.
+
+**Status (done):** screens in `src/ui/` (`PlatoonScreen`, `ActivityScreen`, `BoardScreen`), strings in
+`src/i18n/he.ts`, Dexie in `src/storage/db.ts`, generator + tests in `src/storage/shiftGenerator.ts`
+(gap times → transition instant, ambiguous times → earlier occurrence; tested on Israel DST days and
+with a fast-check property). `src/ui/planner.ts` is the only place that calls the solver — session 2
+swaps its `fakeSolve` import for the real `solve()` in a Worker. Re-plan locks every assignment of a
+shift with `start < now`; "went home" adds an absence `[now, end)`, "back" cuts it at `now`.
+Checked end-to-end in a 390×844 viewport: paste names → board → WhatsApp text, no network requests.
 
 ## 2 — Integration
 Real solver in a Web Worker, all 1B tests green, oracle baseline committed, fix whatever breaks.
