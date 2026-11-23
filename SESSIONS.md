@@ -6,7 +6,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | # | Session | Depends on | Status |
 |---|---|---|---|
 | 0 | Contract: decisions, ALGORITHM.md, types.ts, repo skeleton | — | ✅ done |
-| 1A | Solver | 0 | ⬜ |
+| 1A | Solver | 0 | ✅ done |
 | 1B | Verifier + oracle + property tests + edge cases | 0 | ⬜ |
 | 1C | UI with fake solver | 0 | ⬜ |
 | 2 | Integration (real solver in Web Worker, all tests green) | 1A, 1B, 1C | ⬜ |

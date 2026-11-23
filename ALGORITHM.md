@@ -114,14 +114,20 @@ ordering by deviation is identical to ordering by load.
 INPUT: soldiers, shifts, params (R, α), locked
 
 1. Sort shifts by (start, postIndex, id).
-2. Replay locked assignments in that order, updating state (load, fairShare,
-   lastEnd, busyUntil). Locked assignments are kept even if they violate rest
-   (their debt is reported).
-3. Group the remaining shifts by identical start time. For each group G, in order:
+2. Locked assignments are applied interleaved in time, not up front (a pin in the
+   future must not move lastEnd/busyUntil into the future). They are kept even if
+   they violate rest (their debt is reported). A shift may be partly locked: its open
+   seats per role are `requirement − locked` and are filled by the matching below.
+3. Group the shifts by identical start time. For each group G, in order:
+
+   0. Commit the locked assignments of G's shifts (in shift order, then ROLES order,
+      then soldier id), updating load, lastEnd, busyUntil exactly as in step e.
 
    a. AVAILABLE(s, j) ⇔ s not absent during [start_j, end_j)
                       ∧ busyUntil[s] ≤ start_j
-                      ∧ s not already used in another shift of G.
+                      ∧ s not already used in another shift of G
+                      ∧ s has no locked assignment in a not-yet-processed shift
+                        that is j itself or overlaps j.
 
    b. Candidate cost of soldier s for a slot of role r in shift j ∈ G
       (only if r ∈ roles(s) and AVAILABLE(s, j)):
@@ -141,9 +147,21 @@ INPUT: soldiers, shifts, params (R, α), locked
                 in G ("lookahead slots", cost 0, used only for feasibility),
         right = soldiers,
         edge  = soldier qualified for the slot's role and available for its shift.
-      A soldier may take at most one slot among mutually overlapping shifts.
-      Solve MIN-COST MAXIMUM matching: first maximise the number of filled slots
-      (G + lookahead), then minimise the total cost of G's slots.
+      Each soldier takes at most one slot of the whole graph (a matching).
+      Objective, lexicographic:
+        1. maximise the number of filled slots (G + lookahead);
+        2. among those, maximise the number of filled slots of G
+           (never leave a seat of G empty to fill a lookahead seat);
+        3. among those, minimise the total cost (rank sum) of G's slots.
+      Implemented as MIN-COST MAXIMUM matching (successive shortest paths) with
+      lookahead edges costing BIG = |G slots| · |candidates| + 1 instead of 0.
+      By the transversal-matroid exchange property, (1) never reduces (2).
+
+      TIE-BREAK among matchings that are optimal for 1–3: take the candidates in
+      rank order; each takes the earliest slot of G (shifts in (postIndex, id) order,
+      then roles in ROLES order) such that the optimum is still reachable with all
+      choices made so far; if no slot qualifies, the soldier takes no slot of G.
+      (Ids are compared by UTF-16 code units, never locale-dependent.)
       COMMIT only the slots of G.
 
    d. Slots of G left unfilled ⇒ report shortage (shift, role, missing).
@@ -161,6 +179,13 @@ INPUT: soldiers, shifts, params (R, α), locked
 
 `nextAbsenceStart[s]` – start of the soldier's next absence after `start_j`
 (∞ if none). Preferring soldiers who leave soon uses them before they go.
+
+`F_j` in the fair-share update counts all filled seats of j, locked ones included.
+
+**Warnings produced by the solver (v1).** `REST_DEBT` when at least one assignment
+(locked or not) has `restDebt > 0`; details: `assignments` (count), `totalMinutes`,
+`maxMinutes`. `NIGHT_TRAP` and `ROLE_BOTTLENECK` are pre-flight warnings, to be defined
+here and implemented in session 3.
 
 ### 4.5 Why a matching and not "pick the K best"
 
