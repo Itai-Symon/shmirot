@@ -57,8 +57,15 @@ The exact TypeScript types live in `src/solver/types.ts`. Conceptually:
 3. **Params**
    - `minRestMinutes` (R) – the rest target.
    - `nightWeight` (α) – default 1.5.
-4. **Locked assignments** – (shift, soldier, role) triples that are fixed
-   (the past, or manual pins). Used for re-planning "from now".
+4. **Locked assignments** – (shift, soldier, role) triples of shifts that have
+   **already started** at re-planning time ("from now"). A lock is a fact, not a
+   choice: it is kept even if it violates rest, and even if it no longer satisfies a
+   hard rule because the data changed afterwards (a role removed, an absence entered
+   retroactively). The verifier reports such cases; the solver keeps them.
+   The caller sets the requirements of an already-started shift to what was actually
+   filled (i.e. to its locks), so the solver never fills seats in the past and does not
+   re-report historical shortages. Manual pins of future shifts are out of scope for
+   v1 (§9).
 
 ### Output
 1. **Assignments** – for every shift, which soldier fills which role slot, and for
@@ -279,7 +286,10 @@ extended intervals share a point need **distinct** soldiers.
 ```
 feasible(X) ⇔ for every point t, the slots of all shifts whose extended interval
               contains t can be filled by a matching of distinct qualified soldiers
-              present for their shift.
+              present for their shift (a locked (shift, soldier, role) also counts
+              as allowed, so the produced schedule always witnesses
+              feasible(achieved) and achieved ≤ UB holds even with locks that
+              break a rule in hindsight).
 UB = max X such that feasible(X)          (monotone ⇒ binary search over minutes)
 ```
 
@@ -354,3 +364,6 @@ max coverage, best min rest, best load spread. Assert:
 - Pair diversity (D4).
 - Per-soldier time preferences ("not before 06:00") — next version, as soft cost.
 - Multi-device sync (export/import file and QR only).
+- Manual pins of future shifts. The solver already applies locks interleaved in time
+  and keeps a pinned soldier out of overlapping shifts (§4.4 step 2, 3a), but v1 has no
+  UI for it and the contract only defines locks of already-started shifts (§3).

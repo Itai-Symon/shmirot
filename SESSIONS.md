@@ -47,7 +47,9 @@ Worked example that must pass: soldiers א ב ג ד (role `soldier`), one post, 
    and a role composition per post; optional "split day/night" and "active only between".
    Includes `src/storage/shiftGenerator.ts` (wall clock → minutes, DST-safe, nightMinutes).
 3. **לוח** – schedule by post and time, "copy to WhatsApp", tap a name → "went home" / "back"
-   → re-plan from now (past shifts locked).
+   → re-plan from now (past shifts locked). Every shift that has already started is
+   passed with its assignments as locks and with its requirements set to what was
+   actually filled (ALGORITHM.md §3), so the solver never fills seats in the past.
 - Dexie storage. A fake `solve()` that returns a fixed plausible schedule.
 - Target: from opening the app to a list in the WhatsApp group in under 60 seconds.
 
