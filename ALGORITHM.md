@@ -1,0 +1,331 @@
+# Shmirot — Algorithm Contract
+
+This document is the single source of truth for the scheduling algorithm.
+The solver (`src/solver/`), the independent verifier (`src/verifier/`) and all
+tests (`tests/`) are written against **this document**, not against each other.
+If code and this document disagree, the document wins until it is changed on purpose.
+
+Status markers used below:
+- **[PROVEN]** – full proof in this document.
+- **[SKETCH]** – proof sketch; additionally enforced by oracle / property tests.
+- **[TESTED]** – no proof claimed; behaviour is measured against a brute-force oracle.
+
+---
+
+## 1. Locked product decisions
+
+| # | Decision | Choice |
+|---|---|---|
+| D1 | Fairness for a soldier who was away (home leave) | Measured **relative to presence**: a soldier only accrues a fair share while present (see §4.3). Returning soldiers do not "catch up" on hours they missed. |
+| D2 | Night weight default | Hours inside **00:00–06:00** wall-clock count **×1.5** (adjustable, `nightWeight`). |
+| D3 | Rest vs. hours balance | **Rest first.** A rested soldier is always preferred over a tired one, regardless of hours. Hours balance is the second criterion. |
+| D4 | Avoid fixed pairs in a post | **Not in v1.** |
+| D5 | Infeasibility | **There is always a schedule.** Rest is a target, not a hard rule. The only hard rules are physical: no one assigned while absent, no one in two places at once, roles only filled by qualified soldiers. Unfillable slots are reported as *shortages*. |
+| D6 | Privacy | The only free text in the whole app is soldier names. Posts are numbered (`עמדה 1`, `עמדה 2` …). Roles come from a fixed list. No locations, unit names or notes. All data stays on the device. The solver itself never sees names, only ids. |
+
+---
+
+## 2. Glossary
+
+- **Activity (פעילות)** – one deployment / rotation. Has a start, an end and a set of posts.
+- **Post (עמדה)** – a numbered guard position with a staffing pattern.
+- **Shift (משמרת)** – one concrete time interval at one post, with role requirements.
+- **Slot** – one seat in a shift that needs one soldier of a given role.
+- **Rest** – for two consecutive shifts of the same soldier: `start(next) − end(prev)`.
+- **Weight** of a shift – `dayMinutes + nightWeight × nightMinutes`.
+
+All times inside the solver are **integer minutes since activity start** (real elapsed
+time). Converting wall-clock times (including DST transitions and midnight crossings)
+into minutes is done **outside** the solver by the shift generator, which also
+precomputes `nightMinutes` for each shift. The solver never touches dates.
+
+Intervals are half-open: `[start, end)`.
+
+---
+
+## 3. Input / Output
+
+The exact TypeScript types live in `src/solver/types.ts`. Conceptually:
+
+### Input
+1. **Soldiers** `s₁ … s_N`, each with:
+   - `roles` – non-empty set of qualifications from the fixed list
+     (`commander`, `soldier`, `medic`, `signaler`, `driver`).
+   - `absences` – list of intervals when the soldier is not in the field.
+2. **Shifts** `j₁ … j_M`, each with `start`, `end`, `postIndex`, `nightMinutes`
+   and `requirements: role → count` (e.g. `{commander: 1, soldier: 1}`).
+3. **Params**
+   - `minRestMinutes` (R) – the rest target.
+   - `nightWeight` (α) – default 1.5.
+4. **Locked assignments** – (shift, soldier, role) triples that are fixed
+   (the past, or manual pins). Used for re-planning "from now".
+
+### Output
+1. **Assignments** – for every shift, which soldier fills which role slot, and for
+   each assignment the rest debt it caused (`max(0, R − rest)`).
+2. **Shortages** – (shift, role, missing count) for slots that could not be filled.
+3. **Per-soldier stats** – weighted load, fair share, deviation, shift count, night
+   minutes, minimum rest, total rest debt.
+4. **Certificate** – achieved minimum rest vs. a proven upper bound (§6).
+
+The output must be **deterministic**: same input ⇒ byte-identical output.
+
+---
+
+## 4. The algorithm
+
+### 4.1 Core idea in one sentence
+
+Process shifts in time order; for each shift, fill its role slots with the
+soldiers who are **rested**, and among those, who are **furthest below their fair
+share** of the work — using a matching so that scarce roles are never wasted.
+
+When everyone is present and there is a single role, this is exactly a round-robin
+queue (§5, Claim 4).
+
+### 4.2 State per soldier
+
+| Field | Meaning | Initial |
+|---|---|---|
+| `load` | weighted minutes guarded so far | 0 |
+| `fairShare` | weighted minutes this soldier *should* have guarded, given presence | 0 |
+| `lastEnd` | end time of the soldier's last shift | −∞ |
+| `busyUntil` | end of the shift currently being guarded | −∞ |
+
+`deviation = load − fairShare` (negative = owes nothing, should guard next).
+
+### 4.3 Fair share (decision D1)
+
+When a shift `j` is assigned, let `present(j)` be the soldiers who are not absent at any
+moment of `[start_j, end_j)`. Let `F_j` be the number of slots actually filled. Then for
+every `s ∈ present(j)`:
+
+```
+fairShare[s] += weight(j) × F_j / |present(j)|
+```
+
+Absent soldiers accrue nothing, so on return they are compared fairly against
+soldiers who were there. When nobody is ever absent, all fair shares are equal and
+ordering by deviation is identical to ordering by load.
+
+### 4.4 Steps
+
+```
+INPUT: soldiers, shifts, params (R, α), locked
+
+1. Sort shifts by (start, postIndex, id).
+2. Replay locked assignments in that order, updating state (load, fairShare,
+   lastEnd, busyUntil). Locked assignments are kept even if they violate rest
+   (their debt is reported).
+3. Group the remaining shifts by identical start time. For each group G, in order:
+
+   a. AVAILABLE(s, j) ⇔ s not absent during [start_j, end_j)
+                      ∧ busyUntil[s] ≤ start_j
+                      ∧ s not already used in another shift of G.
+
+   b. Candidate cost of soldier s for a slot of role r in shift j ∈ G
+      (only if r ∈ roles(s) and AVAILABLE(s, j)):
+
+        rest(s, j) = start_j − lastEnd[s]
+        tier       = 0 if rest ≥ R else 1                    (D3: rest first)
+        key        = tier 0: (deviation[s], −rest, nextAbsenceStart[s], id)
+                     tier 1: (−rest, deviation[s], nextAbsenceStart[s], id)
+
+      Candidates of G are ranked by (tier, key) lexicographically; the rank is
+      the cost. Lower is better.
+
+   c. JOINT MATCHING (prevents wasting scarce roles):
+      Build a bipartite graph:
+        left  = all role slots of G
+              + all role slots of not-yet-assigned shifts that overlap any shift
+                in G ("lookahead slots", cost 0, used only for feasibility),
+        right = soldiers,
+        edge  = soldier qualified for the slot's role and available for its shift.
+      A soldier may take at most one slot among mutually overlapping shifts.
+      Solve MIN-COST MAXIMUM matching: first maximise the number of filled slots
+      (G + lookahead), then minimise the total cost of G's slots.
+      COMMIT only the slots of G.
+
+   d. Slots of G left unfilled ⇒ report shortage (shift, role, missing).
+
+   e. For each committed (s, j):
+        restDebt = max(0, R − rest(s, j))   (0 if s had no previous shift)
+        load[s]  += weight(j)
+        lastEnd[s] = busyUntil[s] = end_j
+      Then for each j ∈ G apply the fair-share update (§4.3).
+
+4. Compute stats and the certificate (§6). Return.
+```
+
+`weight(j) = (end_j − start_j − nightMinutes_j) + α × nightMinutes_j`.
+
+`nextAbsenceStart[s]` – start of the soldier's next absence after `start_j`
+(∞ if none). Preferring soldiers who leave soon uses them before they go.
+
+### 4.5 Why a matching and not "pick the K best"
+
+Example: a shift needs `{commander: 1, soldier: 1}`. Available: Dani (commander,
+soldier, low load) and Yossi (soldier). Greedy "lowest load first" may give Dani the
+`soldier` slot and leave the `commander` slot empty. The matching fills both. The
+lookahead slots extend the same protection across posts whose shifts overlap but start
+at different times.
+
+---
+
+## 5. Correctness claims
+
+Notation: N soldiers, K slots per shift, L shift length, R rest target,
+r = ⌈R / L⌉ in the uniform setting.
+
+**Uniform setting**: one role that every soldier has, every shift has length L,
+shifts are back-to-back, every shift needs K soldiers, nobody is absent, no locks.
+
+### Claim 1 — Always outputs a schedule. [PROVEN]
+Every shift group is processed exactly once and no step can fail: unfilled slots
+become shortages instead of errors. ∎
+
+### Claim 2 — Every output is physically valid. [PROVEN]
+No soldier is assigned while absent, no soldier is in two overlapping shifts, every
+slot is filled by a soldier qualified for its role. Directly enforced by the edge
+conditions in step 3a–3c. Independently re-checked by the verifier on every output. ∎
+
+### Claim 3 — Shortages only when unavoidable. [SKETCH]
+A slot of shift j is reported short only if, given the locked/committed past, there is
+no way to fill all slots of the shifts active at `start_j` with the soldiers present.
+*Sketch:* earlier groups committed a part of a maximum matching that already contained
+j's slots as lookahead, so j's slots remained fillable at every step; at j's own step
+the matching maximises filled slots again. By the max-flow / min-cut theorem (Hall's
+condition) a maximum matching that leaves a slot empty certifies that no assignment
+fills it. *Enforced by:* oracle tests on small instances.
+
+### Claim 4 — Optimal rest in the uniform setting. [PROVEN for round-robin; SKETCH that the solver equals round-robin]
+
+(a) **Upper bound.** In any schedule, consider `g = ⌊N/K⌋ + 1` consecutive shifts.
+They need `gK > N` assignments, so by pigeonhole some soldier guards twice inside
+those g shifts, and therefore rests at most `(⌊N/K⌋ − 1) · L`.
+
+(b) **Round-robin achieves it.** Put soldiers in a queue; shift t takes queue positions
+`tK … tK+K−1 (mod N)`. A soldier's consecutive appearances are N positions apart, so
+their shift indices differ by at least `⌊N/K⌋`, giving rest `≥ (⌊N/K⌋ − 1) · L`.
+
+(c) **Balance.** In round-robin every prefix gives each soldier either ⌊a/N⌋ or
+⌈a/N⌉ shifts (a = assignments so far): counts differ by at most 1.
+
+(d) **Solver = round-robin.** In the uniform setting all fair shares are equal, so the
+key is (tier, load, −rest, id). Inductively the K soldiers with lowest load and, among
+equal loads, earliest `lastEnd`, are exactly the next K in queue order. *Enforced by:*
+property test asserting achieved min rest equals `(⌊N/K⌋ − 1) · L` exactly.
+
+**Corollary (feasibility).** With everyone present, the rest target R can be met
+**iff** `N ≥ K · (r + 1)`. Otherwise the solver still schedules (D5) and the debt is the
+minimum possible.
+
+**Corollary (night trap).** If `N = K · (r + 1)` there is zero slack: every window of
+r+1 shifts uses every soldier exactly once, so the schedule is periodic with period
+`(r+1)·L`. If that period divides 24 h, **the same soldiers get the same night hours
+every day, and no valid schedule avoids it.** The UI must warn about this case.
+
+### Claim 5 — Hours balance in any shape of schedule. [PROVEN under conditions]
+**Conditions:** every soldier qualifies for every required role, nobody is absent, and
+no tier-1 (tired) soldier is ever chosen.
+**Statement:** at all times, `max load − min load ≤ w_max`, where `w_max` is the largest
+shift weight.
+*Proof (induction).* Initially all loads are 0. Assume `max − min ≤ w_max` before a
+shift of weight `w ≤ w_max` is assigned to the k lowest-loaded soldiers. Let `ℓ_k` be the
+k-th lowest load. Each chosen soldier ends at `≤ ℓ_k + w`; every unchosen soldier has
+load `≥ ℓ_k`; the minimum never decreases. If the new minimum is an unchosen soldier,
+new max − new min ≤ `max(old max − old min, w) ≤ w_max`. If it is a chosen soldier
+(old load m, now m + w), the new max is `≤ max(old max, ℓ_k + w)`, and
+`ℓ_k + w − (m + w) = ℓ_k − m ≤ old max − old min ≤ w_max`. ∎
+
+When conditions fail (scarce roles, absences, rest pressure) no closed-form bound is
+claimed; behaviour is measured against the oracle (§8 Layer C).
+
+---
+
+## 6. Certificate of optimality (shown in the UI)
+
+**Upper bound on achievable minimum rest.** For a candidate rest value X, extend every
+shift to `[start, end + X)`. If two shifts of the same soldier both contain a point t
+after extension, then the later one starts before the earlier one ends plus X —
+i.e. rest < X. So in any schedule with minimum rest ≥ X, all slots of shifts whose
+extended intervals share a point need **distinct** soldiers.
+
+```
+feasible(X) ⇔ for every point t, the slots of all shifts whose extended interval
+              contains t can be filled by a matching of distinct qualified soldiers
+              present for their shift.
+UB = max X such that feasible(X)          (monotone ⇒ binary search over minutes)
+```
+
+`feasible` is a necessary condition, so **UB is a valid upper bound** for every possible
+schedule [PROVEN]. The certificate reports `achieved` (min rest over all consecutive
+shift pairs of all soldiers) and `UB`. If `achieved = UB`, the schedule is **proven
+optimal** for minimum rest. The certificate is only computed when there are no
+shortages; otherwise it reports `n/a`.
+
+In the uniform setting `UB = (⌊N/K⌋ − 1) · L`, matching Claim 4.
+
+---
+
+## 7. Complexity
+
+| Part | Cost |
+|---|---|
+| Sort shifts | O(M log M) |
+| Per group: ranking candidates | O(N log N) |
+| Per group: min-cost matching (s slots incl. lookahead, N soldiers) | O(s² · N) with successive shortest paths; s ≤ ~12 in practice |
+| **Total solver** | **O(M · (N log N + s² N))** |
+| Certificate: binary search × sweep × matching | O(log(H) · M · s² N) |
+| Memory | O(N + M) |
+
+Practical scale: 30 soldiers, 7 days, 3 posts, 2 h shifts ⇒ 252 shifts ⇒ well under
+10 ms on a phone. The solver runs in a Web Worker and is re-run on every settings change.
+
+---
+
+## 8. Test plan
+
+### Layer A — Verifier (runs on every output in every test)
+Independent code (does **not** import from `src/solver/`). Checks Claim 2, the shortage
+condition of Claim 3 (with its own matching), determinism, and that reported stats
+(loads, rests, debts) are recomputed correctly from the assignments.
+
+### Layer B — Property-based tests (fast-check)
+- Uniform setting ⇒ achieved min rest **equals** `(⌊N/K⌋ − 1) · L` and certificate says optimal.
+- Uniform setting ⇒ shift counts differ by ≤ 1.
+- Claim 5 conditions ⇒ `max load − min load ≤ w_max`.
+- Certificate: `achieved ≤ UB` always.
+- Permuting soldier order in the input does not change the multiset of per-soldier stats.
+
+### Layer C — Brute-force oracle (the "optimality bar")
+For small instances (≤ 6 soldiers, ≤ 10 shifts) enumerate all schedules and compute:
+max coverage, best min rest, best load spread. Assert:
+- coverage equals the oracle **always**;
+- min-rest gap and load-spread gap vs. oracle are recorded; the suite fails if the
+  measured gap distribution gets worse than the committed baseline
+  (`tests/oracle/baseline.json`). The algorithm can only improve.
+
+### Layer D — Fixed edge cases (`tests/edge-cases/`)
+
+| Case | Expected |
+|---|---|
+| `N = K(r+1)` exactly | min rest exactly R; night-trap warning if period divides 24 h |
+| `N < K(r+1)` | schedule produced; debt spread evenly (spread ≤ one shift) |
+| Night trap (period divides 24 h) | warning flag set |
+| Single commander, post needs commander 24/7 | pre-flight warning; schedule still produced |
+| Commander goes home mid-activity | precise shortage `commander`, no crash |
+| Entire platoon absent | all shortages, no error |
+| Shift crossing midnight | rest computed correctly |
+| DST transition day | shift generator yields no missing / duplicate hour |
+| Posts with misaligned shift boundaries | no double booking; Claim 3 holds |
+| Soldier returns mid-shift | not assigned to a shift already started |
+| Locked shifts violating rest | kept; debt reported |
+| Zero soldiers / zero shifts / requirement 0 | empty output, no error |
+
+---
+
+## 9. Out of scope for v1
+- Pair diversity (D4).
+- Per-soldier time preferences ("not before 06:00") — next version, as soft cost.
+- Multi-device sync (export/import file and QR only).
