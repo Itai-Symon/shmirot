@@ -13,6 +13,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 2.5 | Custom post names and user-defined roles (D6 revised) | 2 | ✅ done |
 | 2.6 | Per-soldier history (day/night guard, rest, home) per activity and in total | 2.5 | ✅ done |
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ✅ done |
+| 3.5 | Backup: export / import a file (next version) | 3 | ⬜ |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
 | 5 | Launch: README + GIF, PROOF.md, live demo, CI | 4 | ⬜ |
@@ -136,6 +137,16 @@ spread, shortages, ROLE_BOTTLENECK (with the role's name), REST_DEBT, NIGHT_TRAP
 by cause. Board shows the certificate and warnings. "נתונים" tab has a second view,
 "מתוכנן": weighted load, deviation from fair share, nights, min rest, shifts for the current
 activity. Helpers in `src/ui/fairness.ts` (tested); `src/ui/FairnessPanel.tsx`.
+
+## 3.5 — Backup (next version, requested)
+Data lives only in the app's own storage on the phone. Deleting the home-screen icon or
+moving to a new phone loses it. Add:
+- **Export:** one JSON file with soldiers, roles, settings, current plan and history
+  (`activities`), shared via the system share sheet (save to Files, send to self).
+- **Import:** pick the file → preview (how many soldiers / activities) → replace or merge.
+  Validate the format and version; never partially import a broken file.
+- A gentle reminder on the stats tab if no backup was made in the last 14 days.
+- Tests: export → import round-trip is lossless; old files still import after a version bump.
 
 ## 5 — Launch
 README (Hebrew + English) with GIF, PROOF.md (Claims 4–5 + certificate, accessible language),
