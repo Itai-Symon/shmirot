@@ -19,6 +19,8 @@ to keep fair over weeks, and every change (someone goes home) means starting ove
   details out.
 - **Always a schedule:** when there aren't enough people, rest is shortened as evenly as
   possible and recorded as debt to be paid back.
+- **Light:** the whole app is 180 KB, opens in under 2 s on a slow phone profile and schedules
+  a week for 30 soldiers in about 10 ms. See [PERFORMANCE.md](PERFORMANCE.md).
 - **Provably fair:** see [ALGORITHM.md](ALGORITHM.md) for the algorithm, proofs and test plan.
 
 ## Install on your phone
@@ -34,6 +36,8 @@ the phone. Every push to `main` runs the tests and redeploys (`.github/workflows
 npm install
 npm run dev     # local dev server
 npm test        # unit, property and oracle tests
+npm run bench   # solver speed on realistic platoons
+npm run size    # what a phone downloads (after build)
 npm run build
 ```
 

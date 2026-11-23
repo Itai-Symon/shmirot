@@ -9,7 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bench": "BENCH=1 vitest run",
+    "size": "node scripts/size.mjs"
   },
   "dependencies": {
     "dexie": "^4.4.7",

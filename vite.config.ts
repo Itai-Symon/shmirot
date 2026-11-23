@@ -33,7 +33,8 @@ export default defineConfig({
     }),
   ],
   test: {
-    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: process.env.BENCH ? ['bench/**/*.bench.ts'] : ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    testTimeout: process.env.BENCH ? 600_000 : 5_000,
     passWithNoTests: true,
   },
 })

@@ -26,7 +26,9 @@ everything split to the minute. That is not the message.
    brute-force optimum in 88% of comparable cases, load balance in 82%, and coverage in
    every aligned case (proven) and 92% of misaligned ones. Quote carefully: each figure
    compares to the best possible schedule for that one metric. Re-run before posting.
-5. Open source, link to the repo and live demo.
+5. **Light:** 180 KB for the whole app (less than one photo), works in airplane mode, a week
+   for 30 soldiers is scheduled in ~10 ms. Numbers and method in PERFORMANCE.md.
+6. Open source, link to the repo and live demo.
 
 ## Draft openings (Hebrew)
 - "במילואים האחרונים ראיתי מפקד יושב עם דף ועט ב-2 בלילה, מנסה לוודא שאף אחד לא מקבל שני לילות ברצף. בניתי לזה פתרון."
