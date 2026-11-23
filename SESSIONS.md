@@ -13,6 +13,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 2.5 | Custom post names and user-defined roles (D6 revised) | 2 | ✅ done |
 | 2.6 | Per-soldier history (day/night guard, rest, home) per activity and in total | 2.5 | ✅ done |
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ✅ done |
+| 3.1 | Ledger per soldier carried into new boards, reset load, stats on platoon page (D7) | 3 | ✅ done |
 | 3.5 | Backup: export / import a file (next version) | 3 | ⬜ |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
@@ -137,6 +138,16 @@ spread, shortages, ROLE_BOTTLENECK (with the role's name), REST_DEBT, NIGHT_TRAP
 by cause. Board shows the certificate and warnings. "נתונים" tab has a second view,
 "מתוכנן": weighted load, deviation from fair share, nights, min rest, shifts for the current
 activity. Helpers in `src/ui/fairness.ts` (tested); `src/ui/FairnessPanel.tsx`.
+
+## 3.1 — Ledger and carry-over (D7)
+**Status (done):** contract change — `SolverInput.history` (`SoldierHistory`), solver seeds its
+state from it, stats stay per-schedule, verifier checks `busyUntil` and first-rest debt against
+history. Claim 5′ added. App: `src/ui/ledger.ts` (fold a replaced board into ledgers, running
+shift folded whole and kept busy; fair share proportional to field time; `toHistory`;
+`soldierNow` for display). Platoon page shows day / night / rest / home / load per soldier and
+a "reset load" button (with confirm). The separate "נתונים" tab and multi-activity history were
+removed (decision with the user); the Dexie `activities` table is left unused.
+Tests: two-part solve = one solve, Claim 5′ bound, busy/rest from history, ledger unit tests.
 
 ## 3.5 — Backup (next version, requested)
 Data lives only in the app's own storage on the phone. Deleting the home-screen icon or

@@ -205,3 +205,7 @@ table.stats tbody tr:last-child td { border-bottom: 0; }
 .range-row input[type='range'] { flex: 1; accent-color: var(--accent); }
 .segmented.small button { font-size: 0.85rem; }
 table.stats td.num { direction: ltr; text-align: right; }
+.soldier-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 6px 0 8px; font-variant-numeric: tabular-nums; }
+.soldier-stats div { text-align: center; background: var(--bg, transparent); }
+.soldier-stats dt { font-size: 0.72rem; color: var(--muted); }
+.soldier-stats dd { margin: 0; font-weight: 600; font-size: 0.9rem; direction: ltr; }

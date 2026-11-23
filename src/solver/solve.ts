@@ -136,6 +136,17 @@ export function solve(input: SolverInput): SolverOutput {
   const fairShare = new Array<number>(nSoldiers).fill(0)
   const lastEnd = new Array<number>(nSoldiers).fill(-Infinity)
   const busyUntil = new Array<number>(nSoldiers).fill(-Infinity)
+  // Carried-in history (§4.2): starting load, fair share, last shift end, still-busy-until.
+  for (const h of input.history ?? []) {
+    const i = soldierOfId.get(h.soldierId)
+    if (i === undefined) continue
+    if (Number.isFinite(h.load)) load[i] = h.load
+    if (Number.isFinite(h.fairShare)) fairShare[i] = h.fairShare
+    if (h.lastEnd !== null && Number.isFinite(h.lastEnd)) lastEnd[i] = h.lastEnd
+    if (h.busyUntil !== null && Number.isFinite(h.busyUntil)) busyUntil[i] = h.busyUntil
+  }
+  const initialLoad = [...load]
+  const initialFairShare = [...fairShare]
   const processed = new Array<boolean>(shifts.length).fill(false)
 
   const placed: Placed[] = []
@@ -337,9 +348,10 @@ export function solve(input: SolverInput): SolverOutput {
     }
     return {
       soldierId: s.id,
-      load: load[i],
-      fairShare: fairShare[i],
-      deviation: load[i] - fairShare[i],
+      // Stats are of this schedule only; history is added by the caller for totals.
+      load: load[i] - initialLoad[i],
+      fairShare: fairShare[i] - initialFairShare[i],
+      deviation: load[i] - initialLoad[i] - (fairShare[i] - initialFairShare[i]),
       shiftCount: mine.length,
       nightMinutes: mine.reduce((sum, x) => sum + shifts[x.pos].nightMinutes, 0),
       minRestMinutes: minRest,

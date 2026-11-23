@@ -22,6 +22,7 @@ Status markers used below:
 | D4 | Avoid fixed pairs in a post | **Not in v1.** |
 | D5 | Infeasibility | **There is always a schedule.** Rest is a target, not a hard rule. The only hard rules are physical: no one assigned while absent, no one in two places at once, roles only filled by qualified soldiers. Unfillable slots are reported as *shortages*. |
 | D6 | Privacy and labels | *(revised after session 2)* Free text is allowed for soldier names, **post names** and **role names** (user-defined roles). Post and role names are short labels (max 16 characters) and every such field shows the hint "no locations, unit names or identifying details"; the responsibility is the user's, as with names. Posts without a name show as `עמדה N`. No notes fields. All data stays on the device. The solver never sees any name: soldiers, posts and roles reach it only as ids / indexes. |
+| D7 | Carry-over between boards *(added after session 3)* | Each soldier has a **ledger** of what he did before the current board (day/night guard, home, field time, weighted load, fair share, last shift). Replacing a board folds what happened on it into the ledgers; every new board starts from them (`SolverInput.history`, §4.2). The ledgers are kept across activities until the user presses **"reset load"**. **Load index** = weighted guard minutes ÷ minutes in the field; home time does not count (consistent with D1). |
 
 ---
 
@@ -99,10 +100,18 @@ queue (§5, Claim 4).
 
 | Field | Meaning | Initial |
 |---|---|---|
-| `load` | weighted minutes guarded so far | 0 |
-| `fairShare` | weighted minutes this soldier *should* have guarded, given presence | 0 |
-| `lastEnd` | end time of the soldier's last shift | −∞ |
-| `busyUntil` | end of the shift currently being guarded | −∞ |
+| `load` | weighted minutes guarded so far | `history.load`, else 0 |
+| `fairShare` | weighted minutes this soldier *should* have guarded, given presence | `history.fairShare`, else 0 |
+| `lastEnd` | end time of the soldier's last shift | `history.lastEnd`, else −∞ |
+| `busyUntil` | end of the shift currently being guarded | `history.busyUntil`, else −∞ |
+
+**History (D7).** `SolverInput.history` optionally gives, per soldier, the state carried in from
+before this schedule, in this schedule's minutes (usually ≤ 0). The app builds it from the
+ledgers: `load` = weighted guard so far, `fairShare` = that soldier's share of all weighted guard
+so far in proportion to his field time, `lastEnd` = end of his last shift, `busyUntil` = end of a
+shift still running when the new board starts. The verifier treats `busyUntil` like a shift he
+is still in (no booking before it) and measures the first rest from `lastEnd`.
+**Output stats are of this schedule only**; the caller adds history for totals.
 
 `deviation = load − fairShare` (negative = owes nothing, should guard next).
 
@@ -228,7 +237,7 @@ Notation: N soldiers, K slots per shift, L shift length, R rest target,
 r = ⌈R / L⌉ in the uniform setting.
 
 **Uniform setting**: one role that every soldier has, every shift has length L,
-shifts are back-to-back, every shift needs K soldiers, nobody is absent, no locks.
+shifts are back-to-back, every shift needs K soldiers, nobody is absent, no locks, no history.
 
 ### Claim 1 — Always outputs a schedule. [PROVEN]
 Every shift group is processed exactly once and no step can fail: unfilled slots
@@ -305,6 +314,18 @@ load `≥ ℓ_k`; the minimum never decreases. If the new minimum is an unchosen
 new max − new min ≤ `max(old max − old min, w) ≤ w_max`. If it is a chosen soldier
 (old load m, now m + w), the new max is `≤ max(old max, ℓ_k + w)`, and
 `ℓ_k + w − (m + w) = ℓ_k − m ≤ old max − old min ≤ w_max`. ∎
+
+### Claim 5′ — Balance from an uneven start (history). [PROVEN under Claim 5's conditions]
+With carried-in history and Claim 5's conditions, let `D₀` be the initial spread of
+deviations. Then at all times `max deviation − min deviation ≤ max(D₀, w_max)`.
+*Proof:* nobody is absent, so every fair-share increment is the same for everyone and
+deviations move exactly like loads. Run Claim 5's induction with `B = max(D₀, w_max)` in place
+of `w_max`: the chosen soldiers are the lowest, each rises by `w ≤ B`, the minimum never
+decreases, so the spread stays `≤ B`. ∎ Because the lowest-deviation soldiers are always
+chosen first, whoever starts ahead is not chosen until the others catch up.
+*Enforced by:* property test, and a second one checking that solving a schedule in two parts
+with history handed over gives exactly the same assignments as solving it at once (aligned
+schedules).
 
 When conditions fail (scarce roles, absences, rest pressure) no closed-form bound is
 claimed; behaviour is measured against the oracle (§8 Layer C).

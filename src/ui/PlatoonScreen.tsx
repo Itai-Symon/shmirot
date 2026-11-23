@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import type { Role } from '../solver/types'
-import type { SoldierRecord } from '../storage/db'
+import type { Plan, SoldierRecord } from '../storage/db'
+import { soldierNow } from './ledger'
 import { LABEL_MAX, cleanLabel, newRoleId, type RoleRecord } from './labels'
 import { parseNames } from './names'
 
@@ -12,6 +13,8 @@ function newId(): string {
 }
 
 export function PlatoonScreen(props: {
+  plan: Plan | undefined
+  onResetLoad: () => void
   soldiers: SoldierRecord[]
   onChange: (list: SoldierRecord[]) => void
   roles: RoleRecord[]
@@ -23,6 +26,13 @@ export function PlatoonScreen(props: {
   const [text, setText] = useState('')
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [newRole, setNewRole] = useState('')
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const hm = (m: number) => `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')}`
   const roles = props.roles
   const ROLES = roles.map((r) => r.id)
   const defaultRole = roles.some((r) => r.id === 'soldier') ? 'soldier' : roles[0]?.id
@@ -170,6 +180,18 @@ export function PlatoonScreen(props: {
                     {confirmId === s.id ? t.platoon.removeConfirm : t.platoon.remove}
                   </button>
                 </div>
+                {(() => {
+                  const n = soldierNow(s.id, s.ledger, props.plan, nowMs)
+                  return (
+                    <dl className="soldier-stats">
+                      <div><dt>{t.platoon.statDay}</dt><dd>{hm(n.dayGuardMinutes)}</dd></div>
+                      <div><dt>{t.platoon.statNight}</dt><dd>{hm(n.nightGuardMinutes)}</dd></div>
+                      <div><dt>{t.platoon.statRest}</dt><dd>{hm(n.restMinutes)}</dd></div>
+                      <div><dt>{t.platoon.statHome}</dt><dd>{hm(n.homeMinutes)}</dd></div>
+                      <div><dt>{t.platoon.statLoad}</dt><dd>{n.loadIndex === null ? '—' : `${Math.round(n.loadIndex * 100)}%`}</dd></div>
+                    </dl>
+                  )
+                })()}
                 <div className="chips small">
                   {ROLES.map((r) => (
                     <button
@@ -186,6 +208,19 @@ export function PlatoonScreen(props: {
               </li>
             ))}
           </ul>
+          <p className="muted small-print">{t.platoon.statsHint}</p>
+          <button
+            type="button"
+            className={confirmReset ? 'btn danger' : 'btn'}
+            onBlur={() => setConfirmReset(false)}
+            onClick={() => {
+              if (!confirmReset) return setConfirmReset(true)
+              setConfirmReset(false)
+              props.onResetLoad()
+            }}
+          >
+            {confirmReset ? t.platoon.resetLoadConfirm : t.platoon.resetLoad}
+          </button>
           <div className="sticky-action">
             <button type="button" className="btn primary" onClick={props.onNext}>
               {t.platoon.next}

@@ -6,9 +6,6 @@ import {
   type Plan,
   type SoldierRecord,
   loadPlan,
-  loadHistory,
-  archiveActivity,
-  deleteActivity,
   loadRoles,
   loadSettings,
   loadSoldiers,
@@ -20,15 +17,15 @@ import {
 } from './storage/db'
 import { ActivityScreen } from './ui/ActivityScreen'
 import { BoardScreen } from './ui/BoardScreen'
-import { StatsScreen } from './ui/StatsScreen'
-import { hasStarted, type ActivityRecord } from './ui/history'
+import { hasStarted } from './ui/history'
+import { emptyLedger, foldPlan, toHistory, type Ledger } from './ui/ledger'
 import { PlatoonScreen } from './ui/PlatoonScreen'
 import { defaultSettings } from './ui/defaults'
 import { createPlan, minuteAt, toggleHome } from './ui/planner'
 import { solveInWorker } from './ui/solverClient'
 import { defaultRoles, type RoleRecord } from './ui/labels'
 
-type Tab = 'platoon' | 'activity' | 'board' | 'stats'
+type Tab = 'platoon' | 'activity' | 'board'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -37,7 +34,6 @@ export default function App() {
   const [settings, setSettings] = useState<ActivitySettings>(() => defaultSettings(Date.now()))
   const [plan, setPlan] = useState<Plan | undefined>()
   const [roles, setRoles] = useState<RoleRecord[]>(defaultRoles)
-  const [history, setHistory] = useState<ActivityRecord[]>([])
   const [preview, setPreview] = useState<SolverOutput | null>(null)
   const [previewBusy, setPreviewBusy] = useState(false)
   const previewSeq = useRef(0)
@@ -52,9 +48,8 @@ export default function App() {
 
   useEffect(() => {
     requestPersistence()
-    Promise.all([loadSoldiers(), loadSettings(), loadPlan(), loadRoles(), loadHistory().catch(() => [])])
-      .then(([s, st, p, rl, h]) => {
-        setHistory(h)
+    Promise.all([loadSoldiers(), loadSettings(), loadPlan(), loadRoles()])
+      .then(([s, st, p, rl]) => {
         setSoldiers(s)
         if (rl && rl.length) setRoles(rl)
         if (st) {
@@ -76,7 +71,8 @@ export default function App() {
     const seq = ++previewSeq.current
     setPreviewBusy(true)
     const timer = window.setTimeout(() => {
-      createPlan(settings, soldiers, solveInWorker, roles)
+      const ledgers = foldedLedgers(Date.now())
+      createPlan(settings, soldiers, solveInWorker, roles, (start) => toHistory(ledgers, start))
         .then((r) => {
           if (seq === previewSeq.current) setPreview(typeof r === 'string' ? null : r.output)
         })
@@ -119,12 +115,20 @@ export default function App() {
 
   const busy = useRef(false)
 
+  /** Ledgers as they will be once the current board is replaced now. */
+  const foldedLedgers = (nowMs: number): Map<SoldierId, Ledger> => {
+    const base = new Map(soldiers.map((s) => [s.id, s.ledger ?? emptyLedger()]))
+    return plan && hasStarted(plan, nowMs) ? foldPlan(base, plan, nowMs) : base
+  }
+
   const create = async () => {
     if (busy.current) return
     busy.current = true
     let result: Awaited<ReturnType<typeof createPlan>>
+    const nowMs = Date.now()
+    const ledgers = foldedLedgers(nowMs)
     try {
-      result = await createPlan(settings, soldiers, solveInWorker, roles)
+      result = await createPlan(settings, soldiers, solveInWorker, roles, (start) => toHistory(ledgers, start))
     } catch {
       toast(t.board.solverError)
       return
@@ -136,24 +140,24 @@ export default function App() {
       if (result === 'errNoSoldiers') setTab('platoon')
       return
     }
-    // The replaced activity goes to history if it already started (its past is real).
-    const nowMs = Date.now()
+    // What happened on the replaced board is now in each soldier's ledger.
     if (plan && hasStarted(plan, nowMs)) {
-      const rec: ActivityRecord = {
-        id: plan.id ?? `legacy-${plan.generated.startEpochMs}`,
-        plan,
-        names: Object.fromEntries(soldiers.filter((s) => plan.soldierIds.includes(s.id)).map((s) => [s.id, s.name])),
-        closedAtMinute: minuteAt(plan, nowMs),
-      }
-      setHistory((h) => [...h.filter((x) => x.id !== rec.id), rec])
-      void archiveActivity(rec)
-      // Time already counted in the replaced activity is not counted again in the new one.
+      updateSoldiers(soldiers.map((s) => ({ ...s, ledger: ledgers.get(s.id) ?? s.ledger })))
+      // Time already in the ledgers is not counted again on the new board.
       const closedMs = Math.min(nowMs, plan.generated.startEpochMs + plan.generated.endMinute * 60_000)
       if (closedMs > result.generated.startEpochMs) result = { ...result, countFromMs: closedMs }
     }
     updatePlan(result)
     setTab('board')
     window.scrollTo(0, 0)
+  }
+
+  /** "Reset load": everyone starts from zero; the current board counts only from now. */
+  const resetLoad = () => {
+    const nowMs = Date.now()
+    updateSoldiers(soldiers.map((s) => ({ ...s, ledger: emptyLedger() })))
+    if (plan) updatePlan({ ...plan, countFromMs: nowMs, history: [] })
+    toast(t.platoon.loadReset)
   }
 
   const onToggleHome = async (id: SoldierId, nowMs: number) => {
@@ -178,19 +182,9 @@ export default function App() {
     <div className="app" dir="rtl">
       <main>
         {!ready ? null : tab === 'platoon' ? (
-          <PlatoonScreen soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
+          <PlatoonScreen plan={plan} onResetLoad={resetLoad} soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (
           <ActivityScreen preview={preview} previewBusy={previewBusy} roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
-        ) : tab === 'stats' ? (
-          <StatsScreen
-            plan={plan}
-            history={history}
-            soldiers={soldiers}
-            onDeleteActivity={(id) => {
-              setHistory((h) => h.filter((x) => x.id !== id))
-              void deleteActivity(id)
-            }}
-          />
         ) : (
           <BoardScreen
             plan={plan}
@@ -209,7 +203,7 @@ export default function App() {
       )}
 
       <nav className="tabs">
-        {(['platoon', 'activity', 'board', 'stats'] as const).map((k) => (
+        {(['platoon', 'activity', 'board'] as const).map((k) => (
           <button key={k} type="button" aria-current={tab === k ? 'page' : undefined} onClick={() => go(k)}>
             {t.nav[k]}
           </button>

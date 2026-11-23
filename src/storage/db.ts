@@ -2,7 +2,8 @@
  * Local persistence (IndexedDB via Dexie). Nothing ever leaves the device (D6).
  */
 import Dexie, { type Table } from 'dexie'
-import type { Interval, Minutes, Role, SoldierId, SolverOutput } from '../solver/types'
+import type { Interval, Minutes, Role, SoldierHistory, SoldierId, SolverOutput } from '../solver/types'
+import type { Ledger } from '../ui/ledger'
 import type { ActivityConfig, GeneratedActivity } from './shiftGenerator'
 import type { RoleRecord } from '../ui/labels'
 import type { ActivityRecord } from '../ui/history'
@@ -14,6 +15,8 @@ export interface SoldierRecord {
   roles: Role[]
   /** Display order. */
   order: number
+  /** Everything before the current board, until "reset load" (carried into new boards). */
+  ledger?: Ledger
 }
 
 /** What the "התחל פעילות" screen edits. */
@@ -39,6 +42,8 @@ export interface Plan {
   /** Soldier ids that were part of the platoon when the plan was made. */
   soldierIds: SoldierId[]
   absences: Record<SoldierId, Interval[]>
+  /** Carried-in history given to the solver when the board was made (reused on re-plan). */
+  history?: SoldierHistory[]
   /** Roles (ids, names, order) when the plan was made. Missing in plans saved before custom roles. */
   roles?: RoleRecord[]
   output: SolverOutput

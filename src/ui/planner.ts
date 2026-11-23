@@ -2,7 +2,7 @@
  * Glue between the screens, the shift generator and the solver.
  * Pure functions only (no React, no storage) so they are unit-testable.
  */
-import type { Interval, LockedAssignment, Minutes, Role, SoldierId, SolverInput, SolverOutput } from '../solver/types'
+import type { Interval, LockedAssignment, Minutes, Role, SoldierHistory, SoldierId, SolverInput, SolverOutput } from '../solver/types'
 import { DEFAULT_PARAMS } from '../solver/types'
 import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
 import { generateShifts, wallAt } from '../storage/shiftGenerator'
@@ -52,6 +52,7 @@ export function buildSolverInput(
       .map((s) => ({ id: s.id, roles: [...s.roles], absences: plan.absences[s.id] ?? [] })),
     shifts,
     ...(plan.roles && { roles: plan.roles.map((r) => r.id) }),
+    ...(plan.history && { history: plan.history.filter((h) => ids.has(h.soldierId)) }),
     params: {
       ...DEFAULT_PARAMS,
       minRestMinutes: plan.settings.restMinutes,
@@ -76,12 +77,21 @@ export async function createPlan(
   soldiers: SoldierRecord[],
   solve: SolveAsync,
   roles: RoleRecord[] = defaultRoles(),
+  history?: (startEpochMs: number) => SoldierHistory[],
 ): Promise<Plan | PlanError> {
   const err = validate(settings, soldiers)
   if (err) return err
   const generated = generateShifts(settings)
   if (generated.shifts.length === 0) return 'errNoShifts'
-  const base = { id: newActivityId(generated.startEpochMs), settings, generated, soldierIds: soldiers.map((s) => s.id), absences: {}, roles }
+  const base = {
+    id: newActivityId(generated.startEpochMs),
+    settings,
+    generated,
+    soldierIds: soldiers.map((s) => s.id),
+    absences: {},
+    roles,
+    ...(history && { history: history(generated.startEpochMs) }),
+  }
   return { ...base, output: await runSolver(solve, base, soldiers, [], null) }
 }
 

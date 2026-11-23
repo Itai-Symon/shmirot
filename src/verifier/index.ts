@@ -124,6 +124,15 @@ export const verify: Verify = (input, output) => {
   }
   for (const [soldierId, list] of bySoldier) {
     list.sort((x, y) => x.shift.start - y.shift.start || x.shift.end - y.shift.end || cmp(x.shift.id, y.shift.id))
+    // §4.2: still busy in a shift from before this schedule.
+    const busy = input.history?.find((x) => x.soldierId === soldierId)?.busyUntil
+    if (busy !== null && busy !== undefined) {
+      for (const p of list) {
+        if (!p.a.locked && p.shift.start < busy) {
+          add('DOUBLE_BOOKED', `soldier ${soldierId} is still busy until ${busy} but is in ${p.shift.id}`, p.shift.id, soldierId)
+        }
+      }
+    }
     for (let i = 0; i < list.length; i++) {
       for (let j = i + 1; j < list.length; j++) {
         const p = list[i]
@@ -224,7 +233,7 @@ function cmp(a: string, b: string): number {
 /**
  * Expected restDebt for each assignment (same index), or null when it cannot be defined
  * (unknown shift/soldier). Rest = start(next) − end(prev) over the soldier's assignments in
- * time order; first assignment has debt 0 (§3, types.ts).
+ * time order; the first assignment is measured from history.lastEnd, else has debt 0.
  */
 export function expectedRestDebts(input: SolverInput, assignments: readonly Assignment[]): (number | null)[] {
   const shiftById = new Map(input.shifts.map((s) => [s.id, s]))
@@ -240,7 +249,10 @@ export function expectedRestDebts(input: SolverInput, assignments: readonly Assi
   })
   for (const list of bySoldier.values()) {
     const ordered = timeOrder(list, assignments, shiftById)
-    let prevEnd: number | null = null
+    // §4.2: rest of the first assignment is measured from the carried-in last shift, if any.
+    const sid = assignments[ordered[0]].soldierId
+    const h = input.history?.find((x) => x.soldierId === sid)
+    let prevEnd: number | null = h && h.lastEnd !== null && Number.isFinite(h.lastEnd) ? h.lastEnd : null
     for (const i of ordered) {
       const shift = shiftById.get(assignments[i].shiftId)!
       result[i] = prevEnd === null ? 0 : Math.max(0, R - (shift.start - prevEnd))
@@ -420,6 +432,8 @@ function eligible(input: SolverInput, shift: Shift, role: Role, fixed: readonly 
     if (!isPresent(soldier, shift)) return
     if (lockedLater.has(soldier.id)) return
     if (fixed.some((p) => p.a.soldierId === soldier.id && overlaps(p.shift, shift))) return
+    const busy = input.history?.find((h) => h.soldierId === soldier.id)?.busyUntil
+    if (busy !== null && busy !== undefined && shift.start < busy) return
     result.push(i)
   })
   return result

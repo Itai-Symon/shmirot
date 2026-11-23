@@ -61,6 +61,23 @@ export interface LockedAssignment {
   role: Role
 }
 
+/**
+ * What a soldier carries in from before this schedule (ALGORITHM.md §4.2): earlier boards of
+ * the same activity and earlier activities, until the user resets load. Times are minutes of
+ * THIS schedule (usually ≤ 0).
+ */
+export interface SoldierHistory {
+  soldierId: SoldierId
+  /** Weighted minutes guarded before this schedule. */
+  load: number
+  /** Weighted minutes this soldier should have guarded before this schedule (§4.3). */
+  fairShare: number
+  /** End of the soldier's last shift before this schedule; null if none. */
+  lastEnd: Minutes | null
+  /** The soldier is still in a shift that started before this schedule, until this minute. */
+  busyUntil: Minutes | null
+}
+
 export interface SolverInput {
   /**
    * Role ids in priority order. Defines the "role order" used for tie-breaks and output
@@ -72,6 +89,8 @@ export interface SolverInput {
   params: SolverParams
   /** Fixed assignments (the past, or manual pins). Kept even if they violate rest. */
   locked: LockedAssignment[]
+  /** Carried-in state per soldier (§4.2). Missing soldier ⇒ starts from zero. */
+  history?: SoldierHistory[]
 }
 
 export interface Assignment {
@@ -89,6 +108,7 @@ export interface Shortage {
   missing: number
 }
 
+/** Per-soldier stats of THIS schedule only (history is not included; add it for totals). */
 export interface SoldierStats {
   soldierId: SoldierId
   /** Weighted minutes guarded. */
