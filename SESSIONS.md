@@ -9,7 +9,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 1A | Solver | 0 | ✅ done |
 | 1B | Verifier + oracle + property tests + edge cases | 0 | ✅ done |
 | 1C | UI with fake solver | 0 | ✅ done |
-| 2 | Integration (real solver in Web Worker, all tests green) | 1A, 1B, 1C | ⬜ |
+| 2 | Integration (real solver in Web Worker, all tests green) | 1A, 1B, 1C | ✅ done |
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ⬜ |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
@@ -87,6 +87,17 @@ Branches are already merged and all tests are green with the real solver. Remain
 - create and commit `tests/oracle/baseline.json`
   (`UPDATE_ORACLE_BASELINE=1 npx vitest run tests/oracle`) and report the numbers;
 - check the full flow on a phone-sized viewport with the real solver.
+
+**Status (done):** `src/solver/worker.ts` + `src/ui/solverClient.ts` (falls back to the main
+thread if workers are unavailable); the planner takes the solver as a parameter
+(`SolveAsync`), tests pass the synchronous `solve()`. `fakeSolve` removed. Worker is in the
+PWA precache. Oracle baseline committed (seed 3001, 100 instances, 74 aligned):
+rest exact on 88% (mean gap 21 min, max 6 h), load spread exact on 82% (mean 20, max 285
+weighted min), misaligned coverage exact on 92% (max gap 2 seats). The oracle optimises
+rest and spread separately, so these gaps are upper bounds on how far the solver is from
+the best schedule for that single metric. E2E in a 390×844 headless Chrome: paste 10 names
+→ create → copy to WhatsApp in 3.5 s of scripted time; "went home" re-plans and removes the
+soldier from future shifts; no external requests, no console errors.
 
 ## 3 — Fairness and transparency
 Fairness screen (hours, nights, deviation per soldier), presets (Balanced / Protect sleep /

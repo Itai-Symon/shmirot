@@ -21,6 +21,10 @@ everything split to the minute. That is not the message.
 4. **Provably fair:** short, readable proofs (PROOF.md) plus a "proven optimal" badge on
    the schedule itself. Fill in real numbers from the oracle run:
    "On X random cases the algorithm matched the true optimum in Y%, and the worst gap was Z."
+   First baseline (session 2, 100 small random instances): minimum rest matched the
+   brute-force optimum in 88% of comparable cases, load balance in 82%, and coverage in
+   every aligned case (proven) and 92% of misaligned ones. Quote carefully: each figure
+   compares to the best possible schedule for that one metric. Re-run before posting.
 5. Open source, link to the repo and live demo.
 
 ## Draft openings (Hebrew)
@@ -32,5 +36,5 @@ everything split to the minute. That is not the message.
 - [ ] Demo uses invented names only
 - [ ] Live demo link works offline after first load
 - [ ] PROOF.md reviewed
-- [ ] Oracle numbers filled in above
+- [ ] Oracle numbers re-checked (first baseline filled in above)
 - [ ] GIF in README

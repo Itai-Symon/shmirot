@@ -88,6 +88,7 @@ export const he = {
     isHome: 'בבית עכשיו',
     isHere: 'בשטח',
     replanned: 'תוכנן מחדש מעכשיו',
+    solverError: 'השיבוץ נכשל. נסו שוב.',
     endedNote: 'הפעילות הסתיימה',
     unknownSoldier: '?',
   },

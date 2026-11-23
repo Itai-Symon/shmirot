@@ -1,0 +1,21 @@
+{
+  "seed": 3001,
+  "instances": 100,
+  "rest": {
+    "zeroGapShare": 0.8831168831168831,
+    "meanGap": 20.649350649350648,
+    "maxGap": 360
+  },
+  "spread": {
+    "zeroGapShare": 0.8163265306122449,
+    "meanGap": 19.744897959183675,
+    "maxGap": 285
+  },
+  "restPairsForced": 0,
+  "coverage": {
+    "zeroGapShare": 0.9230769230769231,
+    "meanGap": 0.11538461538461539,
+    "maxGap": 2
+  },
+  "aligned": 74
+}

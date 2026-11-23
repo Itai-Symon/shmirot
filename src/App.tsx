@@ -18,6 +18,7 @@ import { BoardScreen } from './ui/BoardScreen'
 import { PlatoonScreen } from './ui/PlatoonScreen'
 import { defaultSettings } from './ui/defaults'
 import { createPlan, minuteAt, toggleHome } from './ui/planner'
+import { solveInWorker } from './ui/solverClient'
 
 type Tab = 'platoon' | 'activity' | 'board'
 
@@ -67,8 +68,20 @@ export default function App() {
     void savePlan(p)
   }
 
-  const create = () => {
-    const result = createPlan(settings, soldiers)
+  const busy = useRef(false)
+
+  const create = async () => {
+    if (busy.current) return
+    busy.current = true
+    let result: Awaited<ReturnType<typeof createPlan>>
+    try {
+      result = await createPlan(settings, soldiers, solveInWorker)
+    } catch {
+      toast(t.board.solverError)
+      return
+    } finally {
+      busy.current = false
+    }
     if (typeof result === 'string') {
       toast(t.activity[result])
       if (result === 'errNoSoldiers') setTab('platoon')
@@ -79,10 +92,17 @@ export default function App() {
     window.scrollTo(0, 0)
   }
 
-  const onToggleHome = (id: SoldierId, nowMs: number) => {
-    if (!plan) return
-    updatePlan(toggleHome(plan, soldiers, id, minuteAt(plan, nowMs)))
-    toast(t.board.replanned)
+  const onToggleHome = async (id: SoldierId, nowMs: number) => {
+    if (!plan || busy.current) return
+    busy.current = true
+    try {
+      updatePlan(await toggleHome(plan, soldiers, id, minuteAt(plan, nowMs), solveInWorker))
+      toast(t.board.replanned)
+    } catch {
+      toast(t.board.solverError)
+    } finally {
+      busy.current = false
+    }
   }
 
   const go = (next: Tab) => {
@@ -96,12 +116,12 @@ export default function App() {
         {!ready ? null : tab === 'platoon' ? (
           <PlatoonScreen soldiers={soldiers} onChange={updateSoldiers} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (
-          <ActivityScreen settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={create} />
+          <ActivityScreen settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
         ) : (
           <BoardScreen
             plan={plan}
             soldiers={soldiers}
-            onToggleHome={onToggleHome}
+            onToggleHome={(id, ms) => void onToggleHome(id, ms)}
             onGoCreate={() => go('activity')}
             toast={toast}
           />

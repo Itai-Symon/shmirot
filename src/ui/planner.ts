@@ -7,8 +7,9 @@ import { DEFAULT_PARAMS } from '../solver/types'
 import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
 import { generateShifts, wallAt } from '../storage/shiftGenerator'
 import { t } from '../i18n'
-// Session 2 swaps this for the real solver (in a Web Worker).
-import { fakeSolve as solve } from './fakeSolve'
+
+/** The solver as the planner sees it: the app passes a Web Worker client, tests pass solve(). */
+export type SolveAsync = (input: SolverInput) => Promise<SolverOutput>
 
 export type PlanError = 'errNoSoldiers' | 'errEndBeforeStart' | 'errNoNeeds' | 'errNoShifts'
 
@@ -48,17 +49,23 @@ export function buildSolverInput(
   }
 }
 
-function runSolver(plan: Omit<Plan, 'output'>, soldiers: SoldierRecord[], locked: LockedAssignment[], now: Minutes | null): SolverOutput {
+function runSolver(
+  solve: SolveAsync,
+  plan: Omit<Plan, 'output'>,
+  soldiers: SoldierRecord[],
+  locked: LockedAssignment[],
+  now: Minutes | null,
+): Promise<SolverOutput> {
   return solve(buildSolverInput(plan, soldiers, locked, now))
 }
 
-export function createPlan(settings: ActivitySettings, soldiers: SoldierRecord[]): Plan | PlanError {
+export async function createPlan(settings: ActivitySettings, soldiers: SoldierRecord[], solve: SolveAsync): Promise<Plan | PlanError> {
   const err = validate(settings, soldiers)
   if (err) return err
   const generated = generateShifts(settings)
   if (generated.shifts.length === 0) return 'errNoShifts'
   const base = { settings, generated, soldierIds: soldiers.map((s) => s.id), absences: {} }
-  return { ...base, output: runSolver(base, soldiers, [], null) }
+  return { ...base, output: await runSolver(solve, base, soldiers, [], null) }
 }
 
 /** Minutes since activity start for a real instant (may be negative or past the end). */
@@ -89,19 +96,19 @@ export function markBack(abs: Interval[] | undefined, now: Minutes): Interval[] 
  * Re-plan from `now`: every assignment of a shift that already started is locked
  * (the past cannot change), everything later is solved again.
  */
-export function replan(plan: Plan, soldiers: SoldierRecord[], absences: Plan['absences'], now: Minutes): Plan {
+export async function replan(plan: Plan, soldiers: SoldierRecord[], absences: Plan['absences'], now: Minutes, solve: SolveAsync): Promise<Plan> {
   const started = new Set(plan.generated.shifts.filter((s) => s.start < now).map((s) => s.id))
   const locked: LockedAssignment[] = plan.output.assignments
     .filter((a) => started.has(a.shiftId))
     .map(({ shiftId, soldierId, role }) => ({ shiftId, soldierId, role }))
   const next = { ...plan, absences }
-  return { ...next, output: runSolver(next, soldiers, locked, now) }
+  return { ...next, output: await runSolver(solve, next, soldiers, locked, now) }
 }
 
-export function toggleHome(plan: Plan, soldiers: SoldierRecord[], id: SoldierId, now: Minutes): Plan {
+export function toggleHome(plan: Plan, soldiers: SoldierRecord[], id: SoldierId, now: Minutes, solve: SolveAsync): Promise<Plan> {
   const current = plan.absences[id]
   const updated = isAbsentAt(current, now) ? markBack(current, now) : markHome(current, now, plan.generated.endMinute)
-  return replan(plan, soldiers, { ...plan.absences, [id]: updated }, now)
+  return replan(plan, soldiers, { ...plan.absences, [id]: updated }, now, solve)
 }
 
 // ---------------------------------------------------------------------------
