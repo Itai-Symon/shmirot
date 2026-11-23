@@ -7,7 +7,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 |---|---|---|---|
 | 0 | Contract: decisions, ALGORITHM.md, types.ts, repo skeleton | — | ✅ done |
 | 1A | Solver | 0 | ⬜ |
-| 1B | Verifier + oracle + property tests + edge cases | 0 | ⬜ |
+| 1B | Verifier + oracle + property tests + edge cases | 0 | ✅ done |
 | 1C | UI with fake solver | 0 | ⬜ |
 | 2 | Integration (real solver in Web Worker, all tests green) | 1A, 1B, 1C | ⬜ |
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ⬜ |
@@ -39,6 +39,26 @@ Worked example that must pass: soldiers א ב ג ד (role `soldier`), one post, 
 - Oracle baseline file `tests/oracle/baseline.json` is created in session 2 from the first real run.
 
 **Done when:** all tests exist and fail only because `solve()` throws "not implemented".
+
+**Notes from 1B (for session 2):**
+- Every test that runs `solve()` goes through `tests/helpers/solve.ts → runAndVerify()`:
+  runs twice (determinism), checks the input is not mutated, then `verify()` must return `[]`.
+- Oracle baseline: once the solver is green, create it with
+  `UPDATE_ORACLE_BASELINE=1 npx vitest run tests/oracle` and commit `tests/oracle/baseline.json`.
+- DST row: `tests/edge-cases/dst.test.ts` is skipped until `src/storage/shiftGenerator.ts`
+  exists, then fails on purpose until it is wired to the generator's API.
+- `tsconfig.test.json` makes `npm run build` type-check `tests/` too.
+- Contract points to watch (not changed in 1B):
+  - Layer C asserts coverage = oracle maximum *globally*, but Claim 3 only promises no
+    avoidable shortage *given the committed past*. With lookahead limited to shifts that
+    overlap the current group, a chain g–h–k (g overlaps h, h overlaps k, not g) can lose
+    coverage depending on tie-breaks. If the oracle suite fails on coverage, decide whether
+    to strengthen the solver or weaken §8.
+  - Claim 3 as written: if every slot of the group starting at `t` can be filled, none may be
+    left empty. Lookahead slots cost 0 in §4.4c, so a min-cost matching may prefer a lookahead
+    slot over a group slot; the verifier reports that as `AVOIDABLE_SHORTAGE`.
+  - `provenOptimal` when achieved and UB are both `null` is ambiguous in types.ts; the
+    verifier accepts either value there.
 
 ## 1C — UI with fake solver
 **Goal:** the three screens, Hebrew RTL, installable PWA, on a phone.
