@@ -23,12 +23,14 @@ import { PlatoonScreen } from './ui/PlatoonScreen'
 import { defaultSettings } from './ui/defaults'
 import { createPlan, minuteAt, toggleHome } from './ui/planner'
 import { solveInWorker } from './ui/solverClient'
+import { useOfflineStatus } from './ui/offline'
 import { defaultRoles, type RoleRecord } from './ui/labels'
 
 type Tab = 'platoon' | 'activity' | 'board'
 
 export default function App() {
   const [ready, setReady] = useState(false)
+  const offline = useOfflineStatus()
   const [tab, setTab] = useState<Tab>('platoon')
   const [soldiers, setSoldiers] = useState<SoldierRecord[]>([])
   const [settings, setSettings] = useState<ActivitySettings>(() => defaultSettings(Date.now()))
@@ -181,6 +183,10 @@ export default function App() {
   return (
     <div className="app" dir="rtl">
       <main>
+        <p className={`offline-status ${offline}`} role="status">
+          {offline === 'ready' ? '✓ ' : ''}
+          {t.offline[offline]}
+        </p>
         {!ready ? null : tab === 'platoon' ? (
           <PlatoonScreen plan={plan} onResetLoad={resetLoad} soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (

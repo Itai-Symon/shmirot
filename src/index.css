@@ -218,3 +218,6 @@ table.stats td.num { direction: ltr; text-align: right; }
 .minutes-picker { display: grid; gap: 8px; }
 .minutes-picker input[type='number'] { width: 90px; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--card); direction: ltr; text-align: center; }
 .post-weight .range-row input[type='range'] { flex: 1; accent-color: var(--accent); }
+.offline-status { margin: 0 0 8px; font-size: 0.78rem; color: var(--muted); }
+.offline-status.ready { color: var(--accent); }
+.offline-status.preparing { color: #a86a00; }

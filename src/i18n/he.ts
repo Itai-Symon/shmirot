@@ -4,6 +4,12 @@ import type { Role } from '../solver/types'
 export const he = {
   appName: 'שמירות',
 
+  offline: {
+    ready: 'מוכן לעבודה בלי אינטרנט',
+    preparing: 'מכין עבודה בלי אינטרנט… השאירו פתוח עם אינטרנט כמה שניות',
+    unsupported: 'הדפדפן הזה לא תומך בעבודה בלי אינטרנט',
+  },
+
   nav: {
     platoon: 'מחלקה',
     activity: 'התחל פעילות',
