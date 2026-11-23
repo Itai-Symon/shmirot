@@ -57,8 +57,15 @@ The exact TypeScript types live in `src/solver/types.ts`. Conceptually:
 3. **Params**
    - `minRestMinutes` (R) – the rest target.
    - `nightWeight` (α) – default 1.5.
-4. **Locked assignments** – (shift, soldier, role) triples that are fixed
-   (the past, or manual pins). Used for re-planning "from now".
+4. **Locked assignments** – (shift, soldier, role) triples of shifts that have
+   **already started** at re-planning time ("from now"). A lock is a fact, not a
+   choice: it is kept even if it violates rest, and even if it no longer satisfies a
+   hard rule because the data changed afterwards (a role removed, an absence entered
+   retroactively). The verifier reports such cases; the solver keeps them.
+   The caller sets the requirements of an already-started shift to what was actually
+   filled (i.e. to its locks), so the solver never fills seats in the past and does not
+   re-report historical shortages. Manual pins of future shifts are out of scope for
+   v1 (§9).
 
 ### Output
 1. **Assignments** – for every shift, which soldier fills which role slot, and for
@@ -114,14 +121,20 @@ ordering by deviation is identical to ordering by load.
 INPUT: soldiers, shifts, params (R, α), locked
 
 1. Sort shifts by (start, postIndex, id).
-2. Replay locked assignments in that order, updating state (load, fairShare,
-   lastEnd, busyUntil). Locked assignments are kept even if they violate rest
-   (their debt is reported).
-3. Group the remaining shifts by identical start time. For each group G, in order:
+2. Locked assignments are applied interleaved in time, not up front (a pin in the
+   future must not move lastEnd/busyUntil into the future). They are kept even if
+   they violate rest (their debt is reported). A shift may be partly locked: its open
+   seats per role are `requirement − locked` and are filled by the matching below.
+3. Group the shifts by identical start time. For each group G, in order:
+
+   0. Commit the locked assignments of G's shifts (in shift order, then ROLES order,
+      then soldier id), updating load, lastEnd, busyUntil exactly as in step e.
 
    a. AVAILABLE(s, j) ⇔ s not absent during [start_j, end_j)
                       ∧ busyUntil[s] ≤ start_j
-                      ∧ s not already used in another shift of G.
+                      ∧ s not already used in another shift of G
+                      ∧ s has no locked assignment in a not-yet-processed shift
+                        that is j itself or overlaps j.
 
    b. Candidate cost of soldier s for a slot of role r in shift j ∈ G
       (only if r ∈ roles(s) and AVAILABLE(s, j)):
@@ -141,9 +154,21 @@ INPUT: soldiers, shifts, params (R, α), locked
                 in G ("lookahead slots", cost 0, used only for feasibility),
         right = soldiers,
         edge  = soldier qualified for the slot's role and available for its shift.
-      A soldier may take at most one slot among mutually overlapping shifts.
-      Solve MIN-COST MAXIMUM matching: first maximise the number of filled slots
-      (G + lookahead), then minimise the total cost of G's slots.
+      Each soldier takes at most one slot of the whole graph (a matching).
+      Objective, lexicographic:
+        1. maximise the number of filled slots (G + lookahead);
+        2. among those, maximise the number of filled slots of G
+           (never leave a seat of G empty to fill a lookahead seat);
+        3. among those, minimise the total cost (rank sum) of G's slots.
+      Implemented as MIN-COST MAXIMUM matching (successive shortest paths) with
+      lookahead edges costing BIG = |G slots| · |candidates| + 1 instead of 0.
+      By the transversal-matroid exchange property, (1) never reduces (2).
+
+      TIE-BREAK among matchings that are optimal for 1–3: take the candidates in
+      rank order; each takes the earliest slot of G (shifts in (postIndex, id) order,
+      then roles in ROLES order) such that the optimum is still reachable with all
+      choices made so far; if no slot qualifies, the soldier takes no slot of G.
+      (Ids are compared by UTF-16 code units, never locale-dependent.)
       COMMIT only the slots of G.
 
    d. Slots of G left unfilled ⇒ report shortage (shift, role, missing).
@@ -161,6 +186,13 @@ INPUT: soldiers, shifts, params (R, α), locked
 
 `nextAbsenceStart[s]` – start of the soldier's next absence after `start_j`
 (∞ if none). Preferring soldiers who leave soon uses them before they go.
+
+`F_j` in the fair-share update counts all filled seats of j, locked ones included.
+
+**Warnings produced by the solver (v1).** `REST_DEBT` when at least one assignment
+(locked or not) has `restDebt > 0`; details: `assignments` (count), `totalMinutes`,
+`maxMinutes`. `NIGHT_TRAP` and `ROLE_BOTTLENECK` are pre-flight warnings, to be defined
+here and implemented in session 3.
 
 ### 4.5 Why a matching and not "pick the K best"
 
@@ -254,7 +286,10 @@ extended intervals share a point need **distinct** soldiers.
 ```
 feasible(X) ⇔ for every point t, the slots of all shifts whose extended interval
               contains t can be filled by a matching of distinct qualified soldiers
-              present for their shift.
+              present for their shift (a locked (shift, soldier, role) also counts
+              as allowed, so the produced schedule always witnesses
+              feasible(achieved) and achieved ≤ UB holds even with locks that
+              break a rule in hindsight).
 UB = max X such that feasible(X)          (monotone ⇒ binary search over minutes)
 ```
 
@@ -329,3 +364,6 @@ max coverage, best min rest, best load spread. Assert:
 - Pair diversity (D4).
 - Per-soldier time preferences ("not before 06:00") — next version, as soft cost.
 - Multi-device sync (export/import file and QR only).
+- Manual pins of future shifts. The solver already applies locks interleaved in time
+  and keeps a pinned soldier out of overlapping shifts (§4.4 step 2, 3a), but v1 has no
+  UI for it and the contract only defines locks of already-started shifts (§3).
