@@ -1,8 +1,7 @@
 /**
  * Layer B — Claim 5: under its conditions, max load − min load ≤ w_max at all times.
- * Conditions: every soldier qualifies for every role, nobody absent, no tired (tier-1)
- * soldier ever chosen. Tier 1 ⇔ rest < R ⇔ restDebt > 0, so "no tier-1 choice" is
- * guaranteed by R = 0 and otherwise read off the output.
+ * Conditions (ALGORITHM.md §5): aligned shifts, every soldier qualifies for every role,
+ * nobody absent, and rest never excludes a candidate — guaranteed by R = 0.
  */
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
@@ -28,7 +27,7 @@ function assertBalanced(input: SolverInput, out: SolverOutput): void {
   }
 }
 
-describe('Claim 5 — hours balance in any shape of schedule', () => {
+describe('Claim 5 — hours balance in aligned schedules', () => {
   it('R = 0 (never tired): spread ≤ w_max after every shift group', () => {
     fc.assert(
       fc.property(claim5Arb('zero'), (input) => {
@@ -40,14 +39,9 @@ describe('Claim 5 — hours balance in any shape of schedule', () => {
     )
   })
 
-  it('any R, whenever no assignment carries rest debt: spread ≤ w_max', () => {
-    fc.assert(
-      fc.property(claim5Arb('random'), (input) => {
-        const out = runAndVerify(input)
-        if (out.assignments.some((a) => a.restDebtMinutes > 0)) return // a tier-1 choice was made: claim does not apply
-        assertBalanced(input, out)
-      }),
-      { seed: 5002, numRuns: 150 },
-    )
-  })
+  // R > 0 is deliberately not asserted: with rest first (D3) a lowest-load soldier who is
+  // still resting is skipped, which can exceed w_max. ALGORITHM.md §5 Claim 5 therefore only
+  // claims the bound when rest never excludes a candidate (R = 0). R > 0 balance is measured
+  // against the oracle in Layer C instead.
 })
+

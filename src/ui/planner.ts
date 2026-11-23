@@ -2,7 +2,7 @@
  * Glue between the screens, the shift generator and the solver.
  * Pure functions only (no React, no storage) so they are unit-testable.
  */
-import type { Interval, LockedAssignment, Minutes, SoldierId, SolverInput, SolverOutput } from '../solver/types'
+import type { Interval, LockedAssignment, Minutes, Role, SoldierId, SolverInput, SolverOutput } from '../solver/types'
 import { DEFAULT_PARAMS } from '../solver/types'
 import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
 import { generateShifts, wallAt } from '../storage/shiftGenerator'
@@ -20,17 +20,36 @@ export function validate(settings: ActivitySettings, soldiers: SoldierRecord[]):
   return null
 }
 
-function runSolver(plan: Omit<Plan, 'output'>, soldiers: SoldierRecord[], locked: LockedAssignment[]): SolverOutput {
+/**
+ * Builds the solver input. Shifts that started before `now` are history (ALGORITHM.md §3):
+ * their requirements are set to exactly what was filled (their locks), so the solver never
+ * fills seats in the past and does not re-report old shortages.
+ */
+export function buildSolverInput(
+  plan: Omit<Plan, 'output'>,
+  soldiers: SoldierRecord[],
+  locked: LockedAssignment[],
+  now: Minutes | null,
+): SolverInput {
   const ids = new Set(plan.soldierIds)
-  const input: SolverInput = {
+  const shifts = plan.generated.shifts.map((shift) => {
+    if (now === null || shift.start >= now) return shift
+    const requirements: Partial<Record<Role, number>> = {}
+    for (const l of locked) if (l.shiftId === shift.id) requirements[l.role] = (requirements[l.role] ?? 0) + 1
+    return { ...shift, requirements }
+  })
+  return {
     soldiers: soldiers
       .filter((s) => ids.has(s.id))
       .map((s) => ({ id: s.id, roles: [...s.roles], absences: plan.absences[s.id] ?? [] })),
-    shifts: plan.generated.shifts,
+    shifts,
     params: { ...DEFAULT_PARAMS, minRestMinutes: plan.settings.restMinutes },
     locked,
   }
-  return solve(input)
+}
+
+function runSolver(plan: Omit<Plan, 'output'>, soldiers: SoldierRecord[], locked: LockedAssignment[], now: Minutes | null): SolverOutput {
+  return solve(buildSolverInput(plan, soldiers, locked, now))
 }
 
 export function createPlan(settings: ActivitySettings, soldiers: SoldierRecord[]): Plan | PlanError {
@@ -39,7 +58,7 @@ export function createPlan(settings: ActivitySettings, soldiers: SoldierRecord[]
   const generated = generateShifts(settings)
   if (generated.shifts.length === 0) return 'errNoShifts'
   const base = { settings, generated, soldierIds: soldiers.map((s) => s.id), absences: {} }
-  return { ...base, output: runSolver(base, soldiers, []) }
+  return { ...base, output: runSolver(base, soldiers, [], null) }
 }
 
 /** Minutes since activity start for a real instant (may be negative or past the end). */
@@ -76,7 +95,7 @@ export function replan(plan: Plan, soldiers: SoldierRecord[], absences: Plan['ab
     .filter((a) => started.has(a.shiftId))
     .map(({ shiftId, soldierId, role }) => ({ shiftId, soldierId, role }))
   const next = { ...plan, absences }
-  return { ...next, output: runSolver(next, soldiers, locked) }
+  return { ...next, output: runSolver(next, soldiers, locked, now) }
 }
 
 export function toggleHome(plan: Plan, soldiers: SoldierRecord[], id: SoldierId, now: Minutes): Plan {

@@ -337,7 +337,8 @@ function checkCertificate(
 
   if (hasShortages || achieved === null) {
     if (ub !== null) add('WRONG_STATS', `certificate must be n/a (shortages or no rest pairs) but UB=${ub}`)
-    if (hasShortages && cert.provenOptimal) add('WRONG_STATS', 'certificate claims proven optimal despite shortages')
+    // ALGORITHM.md §6: provenOptimal is false whenever the certificate is n/a.
+    if (cert.provenOptimal) add('WRONG_STATS', 'certificate claims proven optimal although it is n/a')
     return
   }
 

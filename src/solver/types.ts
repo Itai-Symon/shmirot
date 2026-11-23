@@ -100,7 +100,7 @@ export interface Certificate {
   achievedMinRestMinutes: Minutes | null
   /** Proven upper bound (§6); null when not computable (shortages present or no pairs). */
   upperBoundMinRestMinutes: Minutes | null
-  /** achieved === upperBound */
+  /** achieved !== null && achieved === upperBound. False whenever either is null (certificate n/a). */
   provenOptimal: boolean
 }
 

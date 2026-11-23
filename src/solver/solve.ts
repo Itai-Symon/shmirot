@@ -5,6 +5,7 @@
 
 import { buildCertificate, type CertificateShift } from './certificate'
 import { minCostMaxMatching, type MatchingEdge } from './matching'
+import { nightTrap, roleBottlenecks } from './warnings'
 import {
   ROLES,
   type Assignment,
@@ -381,6 +382,9 @@ export function solve(input: SolverInput): SolverOutput {
       },
     })
   }
+
+  warnings.push(...nightTrap(shifts, assignments))
+  warnings.push(...roleBottlenecks(soldiers, shifts, input.params.minRestMinutes))
 
   return { assignments, shortages, stats, certificate, warnings }
 }

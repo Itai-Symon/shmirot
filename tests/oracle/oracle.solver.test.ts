@@ -1,7 +1,10 @@
 /**
  * Layer C — the solver against the brute-force oracle (ALGORITHM.md §8).
  *
- *  - coverage must equal the oracle's maximum, always;
+ *  - ALIGNED instances (overlapping shifts are identical intervals): coverage must equal the
+ *    oracle's maximum — proven, because groups are then independent (ALGORITHM.md §5 Claim 3).
+ *  - MISALIGNED instances: global maximum coverage is not claimed (Claim 3 is local, given the
+ *    committed past). The coverage gap is recorded and may not get worse than the baseline.
  *  - min-rest gap (oracle best − achieved) and load-spread gap (achieved − oracle best) are
  *    recorded over a fixed, seeded set of instances; the suite fails if the distribution is
  *    worse than the committed baseline tests/oracle/baseline.json.
@@ -36,6 +39,20 @@ export interface OracleSummary {
   spread: GapStats
   /** Instances where a pair-free schedule existed but the solver made someone guard twice. */
   restPairsForced: number
+  /** Misaligned instances only: oracle max coverage − solver coverage, in seats. */
+  coverage: GapStats
+  aligned: number
+}
+
+/** Every two overlapping shifts are the identical interval. */
+export function isAligned(input: SolverInput): boolean {
+  const sh = input.shifts
+  for (let a = 0; a < sh.length; a++)
+    for (let b = a + 1; b < sh.length; b++) {
+      const x = sh[a], y = sh[b]
+      if (x.start < y.end && y.start < x.end && (x.start !== y.start || x.end !== y.end)) return false
+    }
+  return true
 }
 
 function gapStats(gaps: number[]): GapStats {
@@ -55,13 +72,23 @@ describe('Layer C — solver vs. brute-force oracle', () => {
     const restGaps: number[] = []
     const spreadGaps: number[] = []
     let restPairsForced = 0
+    const coverageGaps: number[] = []
+    let aligned = 0
 
     instances.forEach((input, i) => {
       const oracle = bruteForce(input)
       const out = runAndVerify(input)
       const got = measure(input, out.assignments)
 
-      expect(got.coverage, `instance ${i}: coverage`).toBe(oracle.maxCoverage)
+      expect(got.coverage, `instance ${i}: solver beat the oracle on coverage — oracle bug`).toBeLessThanOrEqual(oracle.maxCoverage)
+      if (isAligned(input)) {
+        aligned++
+        expect(got.coverage, `instance ${i}: coverage (aligned)`).toBe(oracle.maxCoverage)
+      } else {
+        coverageGaps.push(oracle.maxCoverage - got.coverage)
+      }
+      // Rest and spread are only comparable when both schedules fill the same number of seats.
+      if (got.coverage !== oracle.maxCoverage) return
 
       // The oracle optimises over every max-coverage schedule, so the solver can never beat it.
       if (oracle.bestMinRest === Infinity) {
@@ -80,7 +107,10 @@ describe('Layer C — solver vs. brute-force oracle', () => {
       rest: gapStats(restGaps),
       spread: gapStats(spreadGaps),
       restPairsForced,
+      coverage: gapStats(coverageGaps),
+      aligned,
     }
+    expect(aligned, 'too few aligned instances to test coverage').toBeGreaterThanOrEqual(20)
 
     if (process.env.UPDATE_ORACLE_BASELINE) {
       writeFileSync(BASELINE, JSON.stringify(summary, null, 2) + '\n')
@@ -90,7 +120,7 @@ describe('Layer C — solver vs. brute-force oracle', () => {
     const base = JSON.parse(readFileSync(BASELINE, 'utf8')) as OracleSummary
     expect(summary.seed).toBe(base.seed)
     expect(summary.instances).toBe(base.instances)
-    for (const k of ['rest', 'spread'] as const) {
+    for (const k of ['rest', 'spread', 'coverage'] as const) {
       expect(summary[k].zeroGapShare, `${k}: share of exact matches`).toBeGreaterThanOrEqual(base[k].zeroGapShare - 1e-9)
       expect(summary[k].meanGap, `${k}: mean gap`).toBeLessThanOrEqual(base[k].meanGap + 1e-9)
       expect(summary[k].maxGap, `${k}: max gap`).toBeLessThanOrEqual(base[k].maxGap + 1e-9)

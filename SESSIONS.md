@@ -45,20 +45,18 @@ Worked example that must pass: soldiers א ב ג ד (role `soldier`), one post, 
   runs twice (determinism), checks the input is not mutated, then `verify()` must return `[]`.
 - Oracle baseline: once the solver is green, create it with
   `UPDATE_ORACLE_BASELINE=1 npx vitest run tests/oracle` and commit `tests/oracle/baseline.json`.
-- DST row: `tests/edge-cases/dst.test.ts` is skipped until `src/storage/shiftGenerator.ts`
-  exists, then fails on purpose until it is wired to the generator's API.
 - `tsconfig.test.json` makes `npm run build` type-check `tests/` too.
-- Contract points to watch (not changed in 1B):
-  - Layer C asserts coverage = oracle maximum *globally*, but Claim 3 only promises no
-    avoidable shortage *given the committed past*. With lookahead limited to shifts that
-    overlap the current group, a chain g–h–k (g overlaps h, h overlaps k, not g) can lose
-    coverage depending on tie-breaks. If the oracle suite fails on coverage, decide whether
-    to strengthen the solver or weaken §8.
-  - Claim 3 as written: if every slot of the group starting at `t` can be filled, none may be
-    left empty. Lookahead slots cost 0 in §4.4c, so a min-cost matching may prefer a lookahead
-    slot over a group slot; the verifier reports that as `AVOIDABLE_SHORTAGE`.
-  - `provenOptimal` when achieved and UB are both `null` is ambiguous in types.ts; the
-    verifier accepts either value there.
+
+**Gaps found after 1A/1B/1C and how they were resolved (merged to main):**
+| Gap | Resolution |
+|---|---|
+| Oracle demanded global max coverage; solver loses coverage on misaligned posts (one soldier, long vs. short shifts) | Contract: global coverage proven only for **aligned** schedules; misaligned coverage gap is recorded in the baseline and may not grow (ALGORITHM.md Claim 3, §8 C). |
+| Lookahead slots at cost 0 could steal a seat from the current group | Already fixed by 1A: lexicographic objective (total, then current group, then cost). Verifier checks it. |
+| Claim 5 failed on misaligned posts and with R > 0 | Contract: Claim 5 conditions are aligned + R = 0 (busy soldiers and rest-first break the bound). Property test narrowed; R > 0 balance is measured by the oracle. |
+| `NIGHT_TRAP` / `ROLE_BOTTLENECK` expected by tests, deferred by 1A | Defined in ALGORITHM.md §4.4 and implemented in `src/solver/warnings.ts`. Session 3 only displays them. |
+| `provenOptimal` ambiguous when certificate is n/a | Defined as `false`; verifier is strict. |
+| DST test waiting for the generator | Wired to `generateShifts` on the 2026 Israel transition days (23 h / 25 h, contiguous, real night minutes). |
+| Re-plan passed past shifts with their original requirements | `buildSolverInput` sets requirements of started shifts to their locks (ALGORITHM.md §3), with a test. |
 
 ## 1C — UI with fake solver
 **Goal:** the three screens, Hebrew RTL, installable PWA, on a phone.
@@ -84,7 +82,11 @@ shift with `start < now`; "went home" adds an absence `[now, end)`, "back" cuts 
 Checked end-to-end in a 390×844 viewport: paste names → board → WhatsApp text, no network requests.
 
 ## 2 — Integration
-Real solver in a Web Worker, all 1B tests green, oracle baseline committed, fix whatever breaks.
+Branches are already merged and all tests are green with the real solver. Remaining:
+- swap `fakeSolve` in `src/ui/planner.ts` for the real `solve()` running in a Web Worker;
+- create and commit `tests/oracle/baseline.json`
+  (`UPDATE_ORACLE_BASELINE=1 npx vitest run tests/oracle`) and report the numbers;
+- check the full flow on a phone-sized viewport with the real solver.
 
 ## 3 — Fairness and transparency
 Fairness screen (hours, nights, deviation per soldier), presets (Balanced / Protect sleep /

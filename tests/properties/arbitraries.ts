@@ -40,13 +40,19 @@ export const uniformArb: fc.Arbitrary<UniformCase> = fc
  * Any shape: several posts, different lengths and offsets, night shifts.
  * Enough soldiers that every moment can be staffed (N ≥ 2 × seats that can be active at once).
  */
+/**
+ * Claim 5 instances. Claim 5 holds for ALIGNED schedules only (ALGORITHM.md §5): all posts
+ * share shift length and boundaries, so shifts that overlap are identical intervals and nobody
+ * is ever busy when a group starts. Posts may still differ in how many shifts they have and in
+ * their role composition.
+ */
 export const claim5Arb = (restMode: 'zero' | 'random'): fc.Arbitrary<SolverInput> =>
   fc
     .record({
+      len: fc.constantFrom(60, 120, 180, 240, 360),
+      offset: fc.integer({ min: 0, max: 8 }).map((x) => x * 30),
       posts: fc.array(
         fc.record({
-          len: fc.constantFrom(60, 120, 180, 240, 360),
-          offset: fc.integer({ min: 0, max: 8 }).map((x) => x * 30),
           count: fc.integer({ min: 1, max: 20 }),
           req: fc.dictionary(fc.constantFrom(...ROLES), fc.integer({ min: 1, max: 2 }), { minKeys: 1, maxKeys: 2 }),
         }),
@@ -57,9 +63,9 @@ export const claim5Arb = (restMode: 'zero' | 'random'): fc.Arbitrary<SolverInput
       alpha: fc.constantFrom(1, 1.5, 2),
       rest: restMode === 'zero' ? fc.constant(0) : fc.integer({ min: 0, max: 16 }).map((x) => x * 30),
     })
-    .map(({ posts, extra, clock, alpha, rest }) => {
+    .map(({ len, offset, posts, extra, clock, alpha, rest }) => {
       const shifts = posts.flatMap((p, post) =>
-        uniformShifts({ count: p.count, lengthMinutes: p.len, firstStart: p.offset, postIndex: post, requirements: p.req as Partial<Record<Role, number>>, clockOffset: clock }),
+        uniformShifts({ count: p.count, lengthMinutes: len, firstStart: offset, postIndex: post, requirements: p.req as Partial<Record<Role, number>>, clockOffset: clock }),
       )
       const concurrent = posts.reduce((n, p) => n + Object.values(p.req).reduce((a, b) => a + b, 0), 0)
       return makeInput(soldiers(2 * concurrent + extra, [...ROLES]), shifts, { minRestMinutes: rest, nightWeight: alpha })

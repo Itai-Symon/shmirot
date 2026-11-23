@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
-import { createPlan, isAbsentAt, markBack, markHome, minuteAt, toggleHome, whatsappText } from './planner'
+import { buildSolverInput, createPlan, isAbsentAt, markBack, markHome, minuteAt, toggleHome, whatsappText } from './planner'
 
 // Invented names only.
 const soldiers: SoldierRecord[] = [
@@ -62,6 +62,25 @@ describe('planner', () => {
 
   it('is deterministic', () => {
     expect(JSON.stringify(plan().output)).toBe(JSON.stringify(plan().output))
+  })
+
+  it('re-plan input: started shifts require exactly their locks (ALGORITHM.md §3)', () => {
+    const p = plan()
+    const now = 5 * 60 + 30
+    const started = p.generated.shifts.filter((s) => s.start < now)
+    const locked = p.output.assignments
+      .filter((a) => started.some((s) => s.id === a.shiftId))
+      .map(({ shiftId, soldierId, role }) => ({ shiftId, soldierId, role }))
+    const input = buildSolverInput(p, soldiers, locked.slice(1), now) // drop one lock: its seat must disappear
+    for (const shift of input.shifts) {
+      const original = p.generated.shifts.find((s) => s.id === shift.id)!
+      if (shift.start >= now) {
+        expect(shift.requirements).toEqual(original.requirements)
+        continue
+      }
+      const seats = Object.values(shift.requirements).reduce((n, k) => n + (k ?? 0), 0)
+      expect(seats).toBe(locked.slice(1).filter((l) => l.shiftId === shift.id).length)
+    }
   })
 
   it('went home → re-plan from now: past locked, soldier not used later', () => {

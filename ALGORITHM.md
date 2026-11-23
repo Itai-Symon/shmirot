@@ -191,8 +191,21 @@ INPUT: soldiers, shifts, params (R, α), locked
 
 **Warnings produced by the solver (v1).** `REST_DEBT` when at least one assignment
 (locked or not) has `restDebt > 0`; details: `assignments` (count), `totalMinutes`,
-`maxMinutes`. `NIGHT_TRAP` and `ROLE_BOTTLENECK` are pre-flight warnings, to be defined
-here and implemented in session 3.
+`maxMinutes`.
+
+`ROLE_BOTTLENECK` (per role r): the rest target R cannot be met for holders of r in **any**
+schedule. Test (§6 restricted to one role): for some shift start t, the r-seats of all
+shifts whose extended interval `[start, end + R)` contains t outnumber the soldiers who are
+qualified for r and present for at least one of those shifts. Details: `qualified`,
+`needed`, `at` (the worst t). Computed from the input only, so the UI can also show it
+before generating.
+
+`NIGHT_TRAP`: the produced schedule repeats every 24 h, i.e. the same soldiers guard the
+same hours every day (e.g. always 02:00–04:00). Test: shift starts span ≥ 24 h, and every
+assignment (s, j) with `start_j + 24 h ≤ last start` has s also assigned to a shift
+starting exactly 24 h later. Details: `periodMinutes`, `nightSpreadMinutes`. Claim 4's
+corollary says it is unavoidable when slack is zero; when slack exists, v1 still warns
+(rotating to avoid it is future work, §9).
 
 ### 4.5 Why a matching and not "pick the K best"
 
@@ -228,7 +241,20 @@ no way to fill all slots of the shifts active at `start_j` with the soldiers pre
 j's slots as lookahead, so j's slots remained fillable at every step; at j's own step
 the matching maximises filled slots again. By the max-flow / min-cut theorem (Hall's
 condition) a maximum matching that leaves a slot empty certifies that no assignment
-fills it. *Enforced by:* oracle tests on small instances.
+fills it. *Enforced by:* the verifier on every output.
+
+**Global coverage — aligned schedules. [PROVEN]** Call a schedule *aligned* if any two
+overlapping shifts are the identical interval (all posts change guard together). Then
+groups never overlap, rest is soft (D5), so each group's coverage depends only on who is
+present then. Each group is solved by a maximum matching, so total coverage is the global
+maximum. *Enforced by:* oracle (Layer C) requires equality on aligned instances.
+
+**Global coverage — misaligned schedules. [TESTED]** Not claimed. Processing shifts in
+time order can commit a soldier to a long shift that blocks several shorter ones later
+(one soldier, post A 60–300, post B 90–210 / 210–330 / …: taking A covers 1 seat where B
+could have covered 2). Exact global coverage with overlapping intervals, roles and
+absences is a hard combinatorial problem and no efficient exact method is claimed. The
+gap to the oracle is recorded in the baseline and may not grow.
 
 ### Claim 4 — Optimal rest in the uniform setting. [PROVEN for round-robin; SKETCH that the solver equals round-robin]
 
@@ -257,9 +283,14 @@ r+1 shifts uses every soldier exactly once, so the schedule is periodic with per
 `(r+1)·L`. If that period divides 24 h, **the same soldiers get the same night hours
 every day, and no valid schedule avoids it.** The UI must warn about this case.
 
-### Claim 5 — Hours balance in any shape of schedule. [PROVEN under conditions]
-**Conditions:** every soldier qualifies for every required role, nobody is absent, and
-no tier-1 (tired) soldier is ever chosen.
+### Claim 5 — Hours balance. [PROVEN under conditions]
+**Conditions:** the schedule is aligned (Claim 3), every soldier qualifies for every
+required role, nobody is absent, and rest never excludes a candidate (R = 0).
+*Why each condition is needed:* misaligned shifts make some soldiers busy when a group
+starts, so the lowest-loaded may be unavailable; with R > 0, rest-first (D3) skips a
+lowest-loaded soldier who is still resting. Both were observed to break the bound in
+property tests. Aligned shifts at one start time share the same interval and therefore
+the same weight, which the proof uses.
 **Statement:** at all times, `max load − min load ≤ w_max`, where `w_max` is the largest
 shift weight.
 *Proof (induction).* Initially all loads are 0. Assume `max − min ≤ w_max` before a
@@ -297,7 +328,8 @@ UB = max X such that feasible(X)          (monotone ⇒ binary search over minut
 schedule [PROVEN]. The certificate reports `achieved` (min rest over all consecutive
 shift pairs of all soldiers) and `UB`. If `achieved = UB`, the schedule is **proven
 optimal** for minimum rest. The certificate is only computed when there are no
-shortages; otherwise it reports `n/a`.
+shortages; otherwise it reports `n/a`. `provenOptimal` is `false` whenever the
+certificate is `n/a` or `achieved` is `null`.
 
 In the uniform setting `UB = (⌊N/K⌋ − 1) · L`, matching Claim 4.
 
@@ -329,17 +361,19 @@ condition of Claim 3 (with its own matching), determinism, and that reported sta
 ### Layer B — Property-based tests (fast-check)
 - Uniform setting ⇒ achieved min rest **equals** `(⌊N/K⌋ − 1) · L` and certificate says optimal.
 - Uniform setting ⇒ shift counts differ by ≤ 1.
-- Claim 5 conditions ⇒ `max load − min load ≤ w_max`.
+- Claim 5 conditions (aligned, all roles, no absences, R = 0) ⇒ `max load − min load ≤ w_max`.
 - Certificate: `achieved ≤ UB` always.
 - Permuting soldier order in the input does not change the multiset of per-soldier stats.
 
 ### Layer C — Brute-force oracle (the "optimality bar")
 For small instances (≤ 6 soldiers, ≤ 10 shifts) enumerate all schedules and compute:
 max coverage, best min rest, best load spread. Assert:
-- coverage equals the oracle **always**;
-- min-rest gap and load-spread gap vs. oracle are recorded; the suite fails if the
-  measured gap distribution gets worse than the committed baseline
-  (`tests/oracle/baseline.json`). The algorithm can only improve.
+- coverage equals the oracle on every **aligned** instance (Claim 3);
+- on misaligned instances the coverage gap is recorded;
+- min-rest gap and load-spread gap are recorded on instances where the solver reaches the
+  oracle's coverage (otherwise they are not comparable);
+- the suite fails if any recorded gap distribution (coverage, rest, spread) gets worse
+  than the committed baseline (`tests/oracle/baseline.json`). The algorithm can only improve.
 
 ### Layer D — Fixed edge cases (`tests/edge-cases/`)
 
@@ -364,6 +398,9 @@ max coverage, best min rest, best load spread. Assert:
 - Pair diversity (D4).
 - Per-soldier time preferences ("not before 06:00") — next version, as soft cost.
 - Multi-device sync (export/import file and QR only).
+- Rotating the night trap away when slack exists (v1 only warns).
+- Weight-aware seat choice: when shifts of different weights start together (misaligned
+  posts), the matching cost ranks soldiers but ignores which seat is heavier.
 - Manual pins of future shifts. The solver already applies locks interleaved in time
   and keeps a pinned soldier out of overlapping shifts (§4.4 step 2, 3a), but v1 has no
   UI for it and the contract only defines locks of already-started shifts (§3).
