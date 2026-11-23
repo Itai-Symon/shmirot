@@ -10,6 +10,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 1B | Verifier + oracle + property tests + edge cases | 0 | ✅ done |
 | 1C | UI with fake solver | 0 | ✅ done |
 | 2 | Integration (real solver in Web Worker, all tests green) | 1A, 1B, 1C | ✅ done |
+| 2.5 | Custom post names and user-defined roles (D6 revised) | 2 | ✅ done |
 | 3 | Fairness screen, sliders/presets, certificate, pre-flight warnings | 2 | ⬜ |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
@@ -98,6 +99,15 @@ rest and spread separately, so these gaps are upper bounds on how far the solver
 the best schedule for that single metric. E2E in a 390×844 headless Chrome: paste 10 names
 → create → copy to WhatsApp in 3.5 s of scripted time; "went home" re-plans and removes the
 soldier from future shifts; no external requests, no console errors.
+
+## 2.5 — Custom post names and roles
+**Status (done):** `Role` is now an opaque id; `SolverInput.roles` gives the role order
+(`roleOrder()` in types.ts, used by solver, verifier and oracle). UI: roles editor on the
+platoon screen (rename / add / remove; removing a role also removes it from soldiers and
+post requirements), optional name per post, 16-char limit and privacy hint on every label
+field. Names live in `src/ui/labels.ts` and storage only; `Plan.roles` snapshots roles at
+creation. Tests: role-rename invariance property, roleOrder unit test, all-custom-roles
+platoon, planner test that no post/role name reaches the solver.
 
 ## 3 — Fairness and transparency
 Fairness screen (hours, nights, deviation per soldier), presets (Balanced / Protect sleep /

@@ -14,7 +14,7 @@
  *
  * Determinism is checked by the test harness (it needs to run the solver twice).
  */
-import { ROLES } from '../solver/types'
+import { roleOrder } from '../solver/types'
 import type {
   Assignment,
   Role,
@@ -67,7 +67,7 @@ export const verify: Verify = (input, output) => {
   for (const a of output.assignments) {
     const shift = shiftById.get(a.shiftId)
     const soldier = soldierById.get(a.soldierId)
-    if (!shift || !soldier || !(ROLES as readonly string[]).includes(a.role)) {
+    if (!shift || !soldier || !roleOrder(input).includes(a.role)) {
       add('UNKNOWN_SHIFT_OR_SOLDIER', `assignment references unknown shift/soldier/role (${a.shiftId}, ${a.soldierId}, ${a.role})`, a.shiftId, a.soldierId)
       continue
     }
@@ -82,7 +82,7 @@ export const verify: Verify = (input, output) => {
     }
   }
   for (const s of output.shortages) {
-    if (!shiftById.has(s.shiftId) || !(ROLES as readonly string[]).includes(s.role)) {
+    if (!shiftById.has(s.shiftId) || !roleOrder(input).includes(s.role)) {
       add('UNKNOWN_SHIFT_OR_SOLDIER', `shortage references unknown shift/role (${s.shiftId}, ${s.role})`, s.shiftId)
     }
   }
@@ -154,7 +154,7 @@ export const verify: Verify = (input, output) => {
   /** Unfilled seats per shift id (recomputed). */
   const unfilled = new Map<string, number>()
   for (const shift of input.shifts) {
-    for (const role of ROLES) {
+    for (const role of roleOrder(input)) {
       const req = required(shift, role)
       const f = filled.get(key(shift.id, role)) ?? 0
       if (f > req) {
@@ -396,7 +396,7 @@ function checkShortagesUnavoidable(
 
     const adj: number[][] = []
     for (const shift of group) {
-      for (const role of ROLES) {
+      for (const role of roleOrder(input)) {
         const open = Math.max(0, required(shift, role) - (lockedInGroup.get(key(shift.id, role)) ?? 0))
         for (let n = 0; n < open; n++) adj.push(eligible(input, shift, role, fixed, lockedLater))
       }

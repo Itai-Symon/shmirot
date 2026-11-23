@@ -10,8 +10,9 @@ Shmirot is an offline, provably fair guard-duty scheduler for platoons (PWA).
   Read it to know what is in scope for the current session; do not do other sessions' work.
 
 ## Hard rules
-- **Privacy (D6):** the only free-text input anywhere is soldier names. No text fields for
-  posts, locations, unit names, roles or notes. Posts are numbered. Roles come from `ROLES`.
+- **Privacy (D6, revised):** free text only for soldier names, post names and role names
+  (max 16 chars, with the "no locations / identifying details" hint). No notes fields.
+  The solver never receives any name — only soldier ids, role ids and post indexes.
   No network calls, no analytics, no external fonts at runtime. All data stays in IndexedDB.
 - **Independence:** `src/verifier/` and `tests/oracle/` must never import from `src/solver/`
   except `types.ts`.

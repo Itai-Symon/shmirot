@@ -6,10 +6,12 @@ import {
   type Plan,
   type SoldierRecord,
   loadPlan,
+  loadRoles,
   loadSettings,
   loadSoldiers,
   requestPersistence,
   savePlan,
+  saveRoles,
   saveSettings,
   saveSoldiers,
 } from './storage/db'
@@ -19,6 +21,7 @@ import { PlatoonScreen } from './ui/PlatoonScreen'
 import { defaultSettings } from './ui/defaults'
 import { createPlan, minuteAt, toggleHome } from './ui/planner'
 import { solveInWorker } from './ui/solverClient'
+import { defaultRoles, type RoleRecord } from './ui/labels'
 
 type Tab = 'platoon' | 'activity' | 'board'
 
@@ -28,6 +31,7 @@ export default function App() {
   const [soldiers, setSoldiers] = useState<SoldierRecord[]>([])
   const [settings, setSettings] = useState<ActivitySettings>(() => defaultSettings(Date.now()))
   const [plan, setPlan] = useState<Plan | undefined>()
+  const [roles, setRoles] = useState<RoleRecord[]>(defaultRoles)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
 
@@ -39,9 +43,10 @@ export default function App() {
 
   useEffect(() => {
     requestPersistence()
-    Promise.all([loadSoldiers(), loadSettings(), loadPlan()])
-      .then(([s, st, p]) => {
+    Promise.all([loadSoldiers(), loadSettings(), loadPlan(), loadRoles()])
+      .then(([s, st, p, rl]) => {
         setSoldiers(s)
+        if (rl && rl.length) setRoles(rl)
         if (st) {
           // A stale start time is moved to the next full hour, keeping everything else.
           const fresh = defaultSettings(Date.now())
@@ -63,6 +68,24 @@ export default function App() {
     setSettings(s)
     void saveSettings(s)
   }
+  /** Roles changed: removed roles are also removed from soldiers and from post requirements. */
+  const updateRoles = (next: RoleRecord[]) => {
+    const keep = new Set(next.map((r) => r.id))
+    setRoles(next)
+    void saveRoles(next)
+    if (soldiers.some((s) => s.roles.some((r) => !keep.has(r)))) {
+      updateSoldiers(soldiers.map((s) => ({ ...s, roles: s.roles.filter((r) => keep.has(r)) })))
+    }
+    if (settings.posts.some((p) => Object.keys(p.requirements).some((r) => !keep.has(r)))) {
+      updateSettings({
+        ...settings,
+        posts: settings.posts.map((p) => ({
+          ...p,
+          requirements: Object.fromEntries(Object.entries(p.requirements).filter(([r]) => keep.has(r))),
+        })),
+      })
+    }
+  }
   const updatePlan = (p: Plan) => {
     setPlan(p)
     void savePlan(p)
@@ -75,7 +98,7 @@ export default function App() {
     busy.current = true
     let result: Awaited<ReturnType<typeof createPlan>>
     try {
-      result = await createPlan(settings, soldiers, solveInWorker)
+      result = await createPlan(settings, soldiers, solveInWorker, roles)
     } catch {
       toast(t.board.solverError)
       return
@@ -114,9 +137,9 @@ export default function App() {
     <div className="app" dir="rtl">
       <main>
         {!ready ? null : tab === 'platoon' ? (
-          <PlatoonScreen soldiers={soldiers} onChange={updateSoldiers} onNext={() => go('activity')} toast={toast} />
+          <PlatoonScreen soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (
-          <ActivityScreen settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
+          <ActivityScreen roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
         ) : (
           <BoardScreen
             plan={plan}

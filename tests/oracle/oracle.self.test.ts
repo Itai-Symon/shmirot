@@ -90,7 +90,7 @@ describe('oracle — consistency', () => {
   it('best min rest never exceeds the §6 upper bound when everything can be staffed', () => {
     fc.assert(
       fc.property(smallInstanceArb({ maxShifts: 7, maxSeats: 8 }), (input) => {
-        const seats = input.shifts.reduce((n, s) => n + Object.values(s.requirements).reduce((a, b) => a + (b ?? 0), 0), 0)
+        const seats = input.shifts.reduce((n, s) => n + Object.values(s.requirements).reduce<number>((a, b) => a + (b ?? 0), 0), 0)
         const r = bruteForce(input)
         if (r.maxCoverage !== seats || r.bestMinRest === Infinity) return
         const ub = upperBoundMinRest(input)

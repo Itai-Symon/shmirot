@@ -18,7 +18,7 @@
  *     used (always take the lowest-index unused one of the class).
  * Plus branch-and-bound on each objective.
  */
-import { ROLES } from '../../src/solver/types'
+import { roleOrder } from '../../src/solver/types'
 import type { Assignment, Role, Shift, SolverInput } from '../../src/solver/types'
 
 export const ORACLE_LIMITS = { soldiers: 6, shifts: 10 } as const
@@ -42,7 +42,7 @@ interface ShiftInfo {
   shift: Shift
   weight: number
   locked: { soldier: number; role: Role }[]
-  /** Roles of the open seats, grouped by role in ROLES order. */
+  /** Roles of the open seats, grouped by role in role order. */
   open: Role[]
   /** ok[p][i]: soldier i is qualified and present for open seat p. */
   ok: boolean[][]
@@ -70,6 +70,7 @@ export function bruteForce(input: SolverInput, options: OracleOptions = {}): Ora
     lockedSoldiers.has(s.id) ? `#${s.id}` : JSON.stringify([[...s.roles].sort(), [...s.absences].sort((a, b) => a.start - b.start || a.end - b.end)]),
   )
 
+  const ROLES = roleOrder(input)
   const infos: ShiftInfo[] = sortShifts(input.shifts).map((shift) => {
     const locked = input.locked
       .filter((l) => l.shiftId === shift.id && index.has(l.soldierId))
@@ -203,7 +204,7 @@ export function bruteForce(input: SolverInput, options: OracleOptions = {}): Ora
 }
 
 function slotCount(shift: Shift): number {
-  return ROLES.reduce((n, r) => n + (shift.requirements[r] ?? 0), 0)
+  return Object.values(shift.requirements).reduce<number>((n, k) => n + (k ?? 0), 0)
 }
 
 /** The three oracle metrics measured on one concrete schedule (e.g. the solver's). */

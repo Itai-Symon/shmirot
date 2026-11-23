@@ -21,14 +21,14 @@ Status markers used below:
 | D3 | Rest vs. hours balance | **Rest first.** A rested soldier is always preferred over a tired one, regardless of hours. Hours balance is the second criterion. |
 | D4 | Avoid fixed pairs in a post | **Not in v1.** |
 | D5 | Infeasibility | **There is always a schedule.** Rest is a target, not a hard rule. The only hard rules are physical: no one assigned while absent, no one in two places at once, roles only filled by qualified soldiers. Unfillable slots are reported as *shortages*. |
-| D6 | Privacy | The only free text in the whole app is soldier names. Posts are numbered (`עמדה 1`, `עמדה 2` …). Roles come from a fixed list. No locations, unit names or notes. All data stays on the device. The solver itself never sees names, only ids. |
+| D6 | Privacy and labels | *(revised after session 2)* Free text is allowed for soldier names, **post names** and **role names** (user-defined roles). Post and role names are short labels (max 16 characters) and every such field shows the hint "no locations, unit names or identifying details"; the responsibility is the user's, as with names. Posts without a name show as `עמדה N`. No notes fields. All data stays on the device. The solver never sees any name: soldiers, posts and roles reach it only as ids / indexes. |
 
 ---
 
 ## 2. Glossary
 
 - **Activity (פעילות)** – one deployment / rotation. Has a start, an end and a set of posts.
-- **Post (עמדה)** – a numbered guard position with a staffing pattern.
+- **Post (עמדה)** – a guard position with a staffing pattern; identified by its index, optionally named in the UI.
 - **Shift (משמרת)** – one concrete time interval at one post, with role requirements.
 - **Slot** – one seat in a shift that needs one soldier of a given role.
 - **Rest** – for two consecutive shifts of the same soldier: `start(next) − end(prev)`.
@@ -49,9 +49,14 @@ The exact TypeScript types live in `src/solver/types.ts`. Conceptually:
 
 ### Input
 1. **Soldiers** `s₁ … s_N`, each with:
-   - `roles` – non-empty set of qualifications from the fixed list
-     (`commander`, `soldier`, `medic`, `signaler`, `driver`).
+   - `roles` – set of qualifications (role ids; user-defined, D6).
    - `absences` – list of intervals when the soldier is not in the field.
+0. **Role order** – `roles`: the platoon's role ids in priority order (optional; default
+   `commander, soldier, medic, signaler, driver`). The *role order* used everywhere below is
+   this list without duplicates, followed by any other role id appearing in the input,
+   sorted by UTF-16 code units (`roleOrder()` in `types.ts`, shared by solver and verifier).
+   Roles are opaque labels to the algorithm: renaming every id consistently, keeping the
+   order, yields the same schedule (property-tested).
 2. **Shifts** `j₁ … j_M`, each with `start`, `end`, `postIndex`, `nightMinutes`
    and `requirements: role → count` (e.g. `{commander: 1, soldier: 1}`).
 3. **Params**
@@ -127,7 +132,7 @@ INPUT: soldiers, shifts, params (R, α), locked
    seats per role are `requirement − locked` and are filled by the matching below.
 3. Group the shifts by identical start time. For each group G, in order:
 
-   0. Commit the locked assignments of G's shifts (in shift order, then ROLES order,
+   0. Commit the locked assignments of G's shifts (in shift order, then role order,
       then soldier id), updating load, lastEnd, busyUntil exactly as in step e.
 
    a. AVAILABLE(s, j) ⇔ s not absent during [start_j, end_j)
@@ -166,7 +171,7 @@ INPUT: soldiers, shifts, params (R, α), locked
 
       TIE-BREAK among matchings that are optimal for 1–3: take the candidates in
       rank order; each takes the earliest slot of G (shifts in (postIndex, id) order,
-      then roles in ROLES order) such that the optimum is still reachable with all
+      then roles in role order) such that the optimum is still reachable with all
       choices made so far; if no slot qualifies, the soldier takes no slot of G.
       (Ids are compared by UTF-16 code units, never locale-dependent.)
       COMMIT only the slots of G.

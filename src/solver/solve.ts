@@ -7,7 +7,7 @@ import { buildCertificate, type CertificateShift } from './certificate'
 import { minCostMaxMatching, type MatchingEdge } from './matching'
 import { nightTrap, roleBottlenecks } from './warnings'
 import {
-  ROLES,
+  roleOrder,
   type Assignment,
   type Role,
   type Shift,
@@ -18,8 +18,6 @@ import {
   type SolverOutput,
   type Warning,
 } from './types'
-
-const ROLE_INDEX: ReadonlyMap<Role, number> = new Map(ROLES.map((r, i) => [r, i]))
 
 /** Ids are compared by UTF-16 code units (never locale-dependent). */
 export function compareIds(a: string, b: string): number {
@@ -93,6 +91,8 @@ export function solve(input: SolverInput): SolverOutput {
 
   // ---- Step 1: sort shifts. -------------------------------------------------------------
   const shifts = [...input.shifts].sort(compareShifts)
+  const ROLES = roleOrder(input)
+  const ROLE_INDEX: ReadonlyMap<Role, number> = new Map(ROLES.map((r, i) => [r, i]))
   const posOfShift = new Map<string, number>()
   shifts.forEach((s, p) => {
     if (!posOfShift.has(s.id)) posOfShift.set(s.id, p)
@@ -384,7 +384,7 @@ export function solve(input: SolverInput): SolverOutput {
   }
 
   warnings.push(...nightTrap(shifts, assignments))
-  warnings.push(...roleBottlenecks(soldiers, shifts, input.params.minRestMinutes))
+  warnings.push(...roleBottlenecks(soldiers, shifts, input.params.minRestMinutes, ROLES))
 
   return { assignments, shortages, stats, certificate, warnings }
 }

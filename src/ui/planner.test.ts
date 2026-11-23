@@ -81,9 +81,33 @@ describe('planner', () => {
         expect(shift.requirements).toEqual(original.requirements)
         continue
       }
-      const seats = Object.values(shift.requirements).reduce((n, k) => n + (k ?? 0), 0)
+      const seats = Object.values(shift.requirements).reduce<number>((n, k) => n + (k ?? 0), 0)
       expect(seats).toBe(locked.slice(1).filter((l) => l.shiftId === shift.id).length)
     }
+  })
+
+  it('custom post names and custom roles reach the board and WhatsApp; solver sees ids only', async () => {
+    const roles = [
+      { id: 'r-gate', name: 'שומר שער' },
+      { id: 'r-cmd', name: 'מפקד משמרת' },
+    ]
+    const team: SoldierRecord[] = soldiers.map((s, i) => ({ ...s, roles: i === 0 ? ['r-cmd', 'r-gate'] : ['r-gate'] }))
+    const custom = {
+      ...settings,
+      posts: [
+        { name: 'ש״ג', requirements: { 'r-gate': 1 }, activeWindow: null },
+        { requirements: { 'r-cmd': 1, 'r-gate': 1 }, activeWindow: null },
+      ],
+    }
+    let seen: Parameters<typeof solveSync>[0] | undefined
+    const p = await createPlan(custom, team, async (input) => ((seen = input), solveSync(input)), roles)
+    if (typeof p === 'string') throw new Error(p)
+    expect(seen!.roles).toEqual(['r-gate', 'r-cmd'])
+    expect(JSON.stringify(seen)).not.toContain('שומר שער')
+    expect(JSON.stringify(seen)).not.toContain('ש״ג')
+    const text = whatsappText(p, team, -1)
+    expect(text).toContain('*ש״ג*')
+    expect(text).toContain('*עמדה 2*')
   })
 
   it('went home → re-plan from now: past locked, soldier not used later', async () => {

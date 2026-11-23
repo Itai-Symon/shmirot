@@ -4,10 +4,11 @@
 import Dexie, { type Table } from 'dexie'
 import type { Interval, Minutes, Role, SoldierId, SolverOutput } from '../solver/types'
 import type { ActivityConfig, GeneratedActivity } from './shiftGenerator'
+import type { RoleRecord } from '../ui/labels'
 
 export interface SoldierRecord {
   id: SoldierId
-  /** The only free-text field in the app (D6). */
+  /** Free text (D6). Role and post names are free text too. */
   name: string
   roles: Role[]
   /** Display order. */
@@ -28,6 +29,8 @@ export interface Plan {
   /** Soldier ids that were part of the platoon when the plan was made. */
   soldierIds: SoldierId[]
   absences: Record<SoldierId, Interval[]>
+  /** Roles (ids, names, order) when the plan was made. Missing in plans saved before custom roles. */
+  roles?: RoleRecord[]
   output: SolverOutput
 }
 
@@ -73,6 +76,9 @@ async function putKv(key: string, value: unknown): Promise<void> {
 export const loadSettings = () => getKv<ActivitySettings>('settings')
 export const saveSettings = (s: ActivitySettings) => putKv('settings', s)
 export const loadPlan = () => getKv<Plan>('plan')
+/** Ordered list of the platoon's roles; undefined until the user first changes them. */
+export const loadRoles = () => getKv<RoleRecord[]>('roles')
+export const saveRoles = (r: RoleRecord[]) => putKv('roles', r)
 export const savePlan = (p: Plan) => putKv('plan', p)
 
 /** Ask the browser not to evict our data under storage pressure (local API, no network). */

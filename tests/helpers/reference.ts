@@ -4,7 +4,7 @@
  * from the verifier's own recomputation; the certificate's UB is passed in or taken from the
  * verifier's §6 implementation (which has its own tests against the oracle).
  */
-import { ROLES } from '../../src/solver/types'
+import { roleOrder } from '../../src/solver/types'
 import type { Assignment, Role, Shortage, SoldierStats, SolverInput, SolverOutput } from '../../src/solver/types'
 import { upperBoundMinRest } from '../../src/verifier/index'
 import { weightOf } from './shifts'
@@ -54,7 +54,7 @@ export function buildOutput(input: SolverInput, picks: Pick[], opts: { upperBoun
 
   const shortages: Shortage[] = []
   for (const sh of input.shifts) {
-    for (const role of ROLES) {
+    for (const role of roleOrder(input)) {
       const need = sh.requirements[role] ?? 0
       const got = picks.filter((p) => p.shiftId === sh.id && p.role === role).length
       if (need > got) shortages.push({ shiftId: sh.id, role, missing: need - got })

@@ -10,9 +10,13 @@ export type Minutes = number
 export type SoldierId = string
 export type ShiftId = string
 
-/** Fixed role list (decision D6: no free-text roles). */
-export const ROLES = ['commander', 'soldier', 'medic', 'signaler', 'driver'] as const
-export type Role = (typeof ROLES)[number]
+/**
+ * A role id. Roles are user-defined (decision D6); the solver only sees ids, never names.
+ */
+export type Role = string
+
+/** Roles a new platoon starts with, and the order used when an input gives none. */
+export const DEFAULT_ROLES: readonly Role[] = ['commander', 'soldier', 'medic', 'signaler', 'driver']
 
 export interface Interval {
   start: Minutes
@@ -58,6 +62,11 @@ export interface LockedAssignment {
 }
 
 export interface SolverInput {
+  /**
+   * Role ids in priority order. Defines the "role order" used for tie-breaks and output
+   * ordering (ALGORITHM.md §3). Defaults to DEFAULT_ROLES. See roleOrder().
+   */
+  roles?: Role[]
   soldiers: Soldier[]
   shifts: Shift[]
   params: SolverParams
@@ -125,6 +134,24 @@ export interface SolverOutput {
   stats: SoldierStats[]
   certificate: Certificate
   warnings: Warning[]
+}
+
+/**
+ * The role order of an input (ALGORITHM.md §3): `input.roles` (or DEFAULT_ROLES) without
+ * duplicates, followed by every other role id that appears in soldiers, requirements or
+ * locks, sorted by UTF-16 code units. Shared by solver and verifier so both agree.
+ */
+export function roleOrder(input: Pick<SolverInput, 'roles' | 'soldiers' | 'shifts' | 'locked'>): Role[] {
+  const base = [...new Set(input.roles ?? DEFAULT_ROLES)]
+  const known = new Set(base)
+  const extra = new Set<Role>()
+  const see = (r: Role) => {
+    if (!known.has(r)) extra.add(r)
+  }
+  for (const s of input.soldiers) s.roles.forEach(see)
+  for (const sh of input.shifts) Object.keys(sh.requirements).forEach(see)
+  for (const l of input.locked) see(l.role)
+  return [...base, ...[...extra].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))]
 }
 
 /** Must be deterministic: same input ⇒ identical output. */

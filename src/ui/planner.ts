@@ -6,6 +6,7 @@ import type { Interval, LockedAssignment, Minutes, Role, SoldierId, SolverInput,
 import { DEFAULT_PARAMS } from '../solver/types'
 import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
 import { generateShifts, wallAt } from '../storage/shiftGenerator'
+import { defaultRoles, postName, roleName, type RoleRecord } from './labels'
 import { t } from '../i18n'
 
 /** The solver as the planner sees it: the app passes a Web Worker client, tests pass solve(). */
@@ -44,6 +45,7 @@ export function buildSolverInput(
       .filter((s) => ids.has(s.id))
       .map((s) => ({ id: s.id, roles: [...s.roles], absences: plan.absences[s.id] ?? [] })),
     shifts,
+    ...(plan.roles && { roles: plan.roles.map((r) => r.id) }),
     params: { ...DEFAULT_PARAMS, minRestMinutes: plan.settings.restMinutes },
     locked,
   }
@@ -59,12 +61,17 @@ function runSolver(
   return solve(buildSolverInput(plan, soldiers, locked, now))
 }
 
-export async function createPlan(settings: ActivitySettings, soldiers: SoldierRecord[], solve: SolveAsync): Promise<Plan | PlanError> {
+export async function createPlan(
+  settings: ActivitySettings,
+  soldiers: SoldierRecord[],
+  solve: SolveAsync,
+  roles: RoleRecord[] = defaultRoles(),
+): Promise<Plan | PlanError> {
   const err = validate(settings, soldiers)
   if (err) return err
   const generated = generateShifts(settings)
   if (generated.shifts.length === 0) return 'errNoShifts'
-  const base = { settings, generated, soldierIds: soldiers.map((s) => s.id), absences: {} }
+  const base = { settings, generated, soldierIds: soldiers.map((s) => s.id), absences: {}, roles }
   return { ...base, output: await runSolver(solve, base, soldiers, [], null) }
 }
 
@@ -118,6 +125,7 @@ export function toggleHome(plan: Plan, soldiers: SoldierRecord[], id: SoldierId,
 export interface BoardRow {
   shiftId: string
   postIndex: number
+  postLabel: string
   start: Minutes
   end: Minutes
   startLabel: string
@@ -138,6 +146,7 @@ export function boardRows(plan: Plan, soldiers: SoldierRecord[]): BoardRow[] {
     return {
       shiftId: s.id,
       postIndex: s.postIndex,
+      postLabel: postName(plan.settings.posts, s.postIndex),
       start: s.start,
       end: s.end,
       startLabel: a.time,
@@ -149,7 +158,7 @@ export function boardRows(plan: Plan, soldiers: SoldierRecord[]): BoardRow[] {
         .map((x) => ({ soldierId: x.soldierId, name: names.get(x.soldierId) ?? t.board.unknownSoldier, locked: x.locked })),
       missing: plan.output.shortages
         .filter((x) => x.shiftId === s.id)
-        .map((x) => ({ role: t.roles[x.role], n: x.missing })),
+        .map((x) => ({ role: roleName(plan.roles, x.role), n: x.missing })),
     }
   })
 }
@@ -161,7 +170,7 @@ export function whatsappText(plan: Plan, soldiers: SoldierRecord[], now: Minutes
   const out: string[] = [t.whatsapp.header(first ? first.dayLabel : '')]
   const posts = [...new Set(rows.map((r) => r.postIndex))].sort((a, b) => a - b)
   for (const p of posts) {
-    out.push('', t.whatsapp.post(p))
+    out.push('', t.whatsapp.post(postName(plan.settings.posts, p)))
     let day: number | null = null
     for (const r of rows.filter((x) => x.postIndex === p)) {
       if (r.dayKey !== day) {

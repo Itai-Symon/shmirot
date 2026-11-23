@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { t } from '../i18n'
-import { ROLES, type Role } from '../solver/types'
+import type { Role } from '../solver/types'
 import type { SoldierRecord } from '../storage/db'
+import { LABEL_MAX, cleanLabel, newRoleId, type RoleRecord } from './labels'
 import { parseNames } from './names'
 
 let idCounter = 0
@@ -13,18 +14,49 @@ function newId(): string {
 export function PlatoonScreen(props: {
   soldiers: SoldierRecord[]
   onChange: (list: SoldierRecord[]) => void
+  roles: RoleRecord[]
+  onRolesChange: (roles: RoleRecord[]) => void
   onNext: () => void
   toast: (msg: string) => void
 }) {
   const { soldiers, onChange } = props
   const [text, setText] = useState('')
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [newRole, setNewRole] = useState('')
+  const roles = props.roles
+  const ROLES = roles.map((r) => r.id)
+  const defaultRole = roles.some((r) => r.id === 'soldier') ? 'soldier' : roles[0]?.id
+
+  const renameRole = (id: Role, raw: string) =>
+    props.onRolesChange(roles.map((r) => (r.id === id ? { ...r, name: cleanLabel(raw) } : r)))
+  const addRole = () => {
+    const name = cleanLabel(newRole).trim()
+    if (!name) return
+    if (roles.some((r) => r.name.trim() === name)) {
+      props.toast(t.platoon.roleExists)
+      return
+    }
+    props.onRolesChange([...roles, { id: newRoleId(), name }])
+    setNewRole('')
+  }
+  const removeRole = (id: Role) => {
+    if (roles.length === 1) {
+      props.toast(t.platoon.lastRole)
+      return
+    }
+    if (confirmId !== `role:${id}`) {
+      setConfirmId(`role:${id}`)
+      return
+    }
+    setConfirmId(null)
+    props.onRolesChange(roles.filter((r) => r.id !== id))
+  }
 
   const add = () => {
     const existing = new Set(soldiers.map((s) => s.name))
     const names = parseNames(text).filter((n) => !existing.has(n))
     let order = soldiers.reduce((m, s) => Math.max(m, s.order), -1)
-    const added = names.map((name) => ({ id: newId(), name, roles: ['soldier'] as Role[], order: ++order }))
+    const added = names.map((name) => ({ id: newId(), name, roles: defaultRole ? [defaultRole] : [], order: ++order }))
     onChange([...soldiers, ...added])
     setText('')
     props.toast(added.length ? t.platoon.addedCount(added.length) : t.platoon.nothingAdded)
@@ -74,6 +106,48 @@ export function PlatoonScreen(props: {
         {t.platoon.add}
       </button>
 
+      <details className="card roles-editor">
+        <summary>
+          <strong>{t.platoon.rolesTitle}</strong> <small className="muted">{t.platoon.rolesEditHint}</small>
+        </summary>
+        <small className="muted">{t.platoon.privacyHint}</small>
+        <ul className="role-list">
+          {roles.map((r) => (
+            <li key={r.id} className="row-between">
+              <input
+                type="text"
+                value={r.name}
+                maxLength={LABEL_MAX}
+                aria-label={t.platoon.rolesTitle}
+                onChange={(e) => renameRole(r.id, e.target.value)}
+                onBlur={() => renameRole(r.id, r.name.trim() || '?')}
+              />
+              <button
+                type="button"
+                className={confirmId === `role:${r.id}` ? 'link danger' : 'link'}
+                onClick={() => removeRole(r.id)}
+                onBlur={() => setConfirmId(null)}
+              >
+                {confirmId === `role:${r.id}` ? t.platoon.removeRoleConfirm : t.platoon.removeRole}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="inline">
+          <input
+            type="text"
+            value={newRole}
+            maxLength={LABEL_MAX}
+            placeholder={t.platoon.roleNamePlaceholder}
+            onChange={(e) => setNewRole(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addRole()}
+          />
+          <button type="button" className="btn" disabled={!newRole.trim()} onClick={addRole}>
+            {t.platoon.addRole}
+          </button>
+        </div>
+      </details>
+
       {soldiers.length === 0 ? (
         <p className="muted center">{t.platoon.empty}</p>
       ) : (
@@ -105,7 +179,7 @@ export function PlatoonScreen(props: {
                       className={s.roles.includes(r) ? 'chip on' : 'chip'}
                       onClick={() => toggleRole(s.id, r)}
                     >
-                      {t.roles[r]}
+                      {roles.find((x) => x.id === r)?.name || '?'}
                     </button>
                   ))}
                 </div>

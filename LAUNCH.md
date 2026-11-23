@@ -17,7 +17,8 @@ everything split to the minute. That is not the message.
 ## Messages to land
 1. Real problem, seen first-hand in reserve duty.
 2. Under 60 seconds from opening the app to a list in the WhatsApp group.
-3. Fully offline, nothing leaves the phone, no sensitive data beyond names.
+3. Fully offline, nothing leaves the phone. Custom post and role names, with a built-in
+   reminder to keep locations and unit details out. Demo with neutral names ("עמדה 1", "שומר").
 4. **Provably fair:** short, readable proofs (PROOF.md) plus a "proven optimal" badge on
    the schedule itself. Fill in real numbers from the oracle run:
    "On X random cases the algorithm matched the true optimum in Y%, and the worst gap was Z."

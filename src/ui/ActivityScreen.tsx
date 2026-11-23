@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { t } from '../i18n'
-import { ROLES, type Role } from '../solver/types'
+import type { Role } from '../solver/types'
 import type { ActivitySettings } from '../storage/db'
 import { addWallHours, type PostConfig } from '../storage/shiftGenerator'
+import { LABEL_MAX, cleanLabel, type RoleRecord } from './labels'
 import { DURATION_HOURS, REST_HOURS, SHIFT_HOURS, defaultPost, deviceTimeZone } from './defaults'
 import { Chips, HourSelect, Stepper, Toggle } from './widgets'
 
@@ -11,7 +12,9 @@ export function ActivityScreen(props: {
   onChange: (s: ActivitySettings) => void
   hasPlan: boolean
   onCreate: () => void
+  roles: RoleRecord[]
 }) {
+  const roles = props.roles
   const { settings: s, onChange } = props
   const [confirm, setConfirm] = useState(false)
   const set = (patch: Partial<ActivitySettings>) => onChange({ ...s, ...patch })
@@ -121,13 +124,24 @@ export function ActivityScreen(props: {
 
       {s.posts.map((p, i) => (
         <div className="card post" key={i}>
-          <h3>{t.activity.post(i)}</h3>
+          <h3>{p.name?.trim() || t.activity.post(i)}</h3>
+          <label className="field">
+            <span>{t.activity.postNameLabel}</span>
+            <input
+              type="text"
+              value={p.name ?? ''}
+              maxLength={LABEL_MAX}
+              placeholder={t.activity.post(i)}
+              onChange={(e) => patchPost(i, { name: cleanLabel(e.target.value) })}
+            />
+            <small className="muted">{t.platoon.privacyHint}</small>
+          </label>
           <small className="muted">{t.activity.perShift}</small>
           <div className="roles-grid">
-            {ROLES.map((r) => (
+            {roles.map(({ id: r, name }) => (
               <div key={r} className={(p.requirements[r] ?? 0) > 0 ? 'role-cell on' : 'role-cell'}>
-                <span>{t.roles[r]}</span>
-                <Stepper value={p.requirements[r] ?? 0} max={9} onChange={(n) => setReq(i, r, n)} label={t.roles[r]} />
+                <span>{name}</span>
+                <Stepper value={p.requirements[r] ?? 0} max={9} onChange={(n) => setReq(i, r, n)} label={name} />
               </div>
             ))}
           </div>

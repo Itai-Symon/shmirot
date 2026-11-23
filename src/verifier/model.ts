@@ -2,7 +2,6 @@
  * Small, independent re-statements of ALGORITHM.md definitions (§2, §4.3, §4.4).
  * Nothing here is shared with the solver.
  */
-import { ROLES } from '../solver/types'
 import type { Interval, Role, Shift, Soldier } from '../solver/types'
 
 /** Half-open intervals [a.start, a.end) and [b.start, b.end) share at least one minute. */
@@ -26,10 +25,10 @@ export function required(shift: Shift, role: Role): number {
   return shift.requirements[role] ?? 0
 }
 
-/** One entry per seat: the role of every slot of the shift, in ROLES order. */
+/** One entry per seat: the role of every slot of the shift (role ids sorted; order is irrelevant to matchings). */
 export function slotsOf(shift: Shift): Role[] {
   const slots: Role[] = []
-  for (const role of ROLES) {
+  for (const role of Object.keys(shift.requirements).sort()) {
     const n = required(shift, role)
     for (let i = 0; i < n; i++) slots.push(role)
   }

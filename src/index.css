@@ -74,7 +74,7 @@ h3 { font-size: 1rem; margin: 0; }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > span { font-weight: 600; font-size: 0.95rem; }
-textarea, input[type='datetime-local'], select {
+textarea, input[type='datetime-local'], input[type='text'], select {
   width: 100%;
   border: 1px solid var(--line);
   background: var(--card);
@@ -186,3 +186,6 @@ textarea { resize: vertical; font-size: 1rem; }
 }
 .sheet h2 { margin: 0; }
 .sheet p { margin: 0 0 6px; }
+.roles-editor summary { cursor: pointer; padding: 4px 0; }
+.role-list { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 8px; }
+.role-list input, .roles-editor .inline input { flex: 1; min-width: 0; }

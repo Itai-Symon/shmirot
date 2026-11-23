@@ -52,7 +52,7 @@ export function smallInstanceArb(opts: SmallInstanceOptions = {}): fc.Arbitrary<
       return makeInput(soldierList, shiftList, { minRestMinutes: rest, nightWeight: alpha })
     })
     .filter((input) => {
-      const seats = input.shifts.reduce((n, s) => n + Object.values(s.requirements).reduce((a, b) => a + (b ?? 0), 0), 0)
+      const seats = input.shifts.reduce((n, s) => n + Object.values(s.requirements).reduce<number>((a, b) => a + (b ?? 0), 0), 0)
       return input.shifts.length <= maxShifts && seats <= maxSeats
     })
 }

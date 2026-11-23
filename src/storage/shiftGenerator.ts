@@ -28,6 +28,8 @@ export interface HourWindow {
 }
 
 export interface PostConfig {
+  /** Optional user-given name (UI only; the solver sees postIndex). */
+  name?: string
   requirements: Partial<Record<Role, number>>
   /** Post staffed only inside this wall-clock window; null ⇒ around the clock. */
   activeWindow: HourWindow | null

@@ -14,8 +14,9 @@ to keep fair over weeks, and every change (someone goes home) means starting ove
 2. Start an activity: number of posts, who each post needs, shift length, rest target.
 3. Get a fair schedule instantly, copy it to WhatsApp, re-plan from "now" when things change.
 
-- **Offline & private:** runs on your phone, nothing leaves the device. Posts are numbered —
-  no locations or unit details can be entered.
+- **Offline & private:** runs on your phone, nothing leaves the device. Name your posts and
+  define your own roles — short labels, and the app reminds you to keep locations and unit
+  details out.
 - **Always a schedule:** when there aren't enough people, rest is shortened as evenly as
   possible and recorded as debt to be paid back.
 - **Provably fair:** see [ALGORITHM.md](ALGORITHM.md) for the algorithm, proofs and test plan.

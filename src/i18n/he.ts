@@ -34,6 +34,15 @@ export const he = {
     empty: 'עוד אין חיילים. הדביקו רשימת שמות למעלה.',
     next: 'הבא: התחל פעילות',
     atLeastOneRole: 'לכל חייל צריך להיות לפחות תפקיד אחד',
+    rolesTitle: 'תפקידים',
+    rolesEditHint: 'אפשר לשנות שם, להוסיף או להסיר',
+    roleNamePlaceholder: 'תפקיד חדש',
+    addRole: 'הוסף תפקיד',
+    removeRole: 'הסר',
+    removeRoleConfirm: 'להסיר?',
+    lastRole: 'צריך לפחות תפקיד אחד',
+    roleExists: 'כבר יש תפקיד בשם הזה',
+    privacyHint: 'בלי מיקומים, שמות יחידות או פרטים מזהים',
   },
 
   activity: {
@@ -47,6 +56,7 @@ export const he = {
     rest: 'מנוחה רצויה',
     posts: 'עמדות',
     post: (i: number) => `עמדה ${i + 1}`,
+    postNameLabel: 'שם העמדה (לא חובה)',
     addPost: 'הוסף עמדה',
     removePost: 'הסר עמדה',
     perShift: 'בכל משמרת',
@@ -95,7 +105,7 @@ export const he = {
 
   whatsapp: {
     header: (date: string) => `*שמירות* ${date}`,
-    post: (i: number) => `*עמדה ${i + 1}*`,
+    post: (name: string) => `*${name}*`,
     missing: (role: string) => `⚠️ חסר ${role}`,
   },
 

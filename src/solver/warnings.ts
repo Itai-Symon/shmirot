@@ -2,7 +2,7 @@
  * Warnings — ALGORITHM.md §4.6. Pure, deterministic, computed from the input and the
  * produced assignments.
  */
-import { ROLES, type Assignment, type Role, type Shift, type Soldier, type Warning } from './types'
+import { type Assignment, type Role, type Shift, type Soldier, type Warning } from './types'
 
 const DAY = 24 * 60
 
@@ -22,10 +22,10 @@ function presentFor(soldier: Soldier, shift: Shift): boolean {
  * t must be filled by distinct soldiers qualified for r and present for one of those shifts.
  * If any t violates it, warn with details { qualified, needed, at }.
  */
-export function roleBottlenecks(soldiers: readonly Soldier[], shifts: readonly Shift[], minRest: number): Warning[] {
+export function roleBottlenecks(soldiers: readonly Soldier[], shifts: readonly Shift[], minRest: number, roles: readonly Role[]): Warning[] {
   const out: Warning[] = []
   const starts = [...new Set(shifts.map((s) => s.start))].sort((a, b) => a - b)
-  for (const role of ROLES) {
+  for (const role of roles) {
     const roleShifts = shifts.filter((s) => requiredCount(s, role) > 0)
     if (roleShifts.length === 0) continue
     let worst: { qualified: number; needed: number; at: number } | null = null

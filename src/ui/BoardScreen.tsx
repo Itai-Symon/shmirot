@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { postName } from './labels'
 import { t } from '../i18n'
 import type { SoldierId } from '../solver/types'
 import type { Plan, SoldierRecord } from '../storage/db'
@@ -98,7 +99,7 @@ export function BoardScreen(props: {
           <small className="muted ltr">{r.endLabel}</small>
         </div>
         <div className="shift-body">
-          {showPost && <small className="muted">{t.activity.post(r.postIndex)}</small>}
+          {showPost && <small className="muted">{r.postLabel}</small>}
           <div className="names">
             {r.people.map((p) => (
               <button
@@ -180,7 +181,7 @@ export function BoardScreen(props: {
       {view === 'post' ? (
         posts.map((p) => (
           <div key={p} className="post-block">
-            <h2>{t.activity.post(p)}</h2>
+            <h2>{postName(plan.settings.posts, p)}</h2>
             <ul className="shifts">{withDays(rows.filter((r) => r.postIndex === p), false)}</ul>
           </div>
         ))

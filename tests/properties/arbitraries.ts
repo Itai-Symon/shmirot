@@ -1,6 +1,6 @@
 /** fast-check generators for the property tests (Layer B). */
 import fc from 'fast-check'
-import { ROLES } from '../../src/solver/types'
+import { DEFAULT_ROLES as ROLES } from '../../src/solver/types'
 import type { LockedAssignment, Role, Shift, Soldier, SolverInput } from '../../src/solver/types'
 import { makeInput, soldierId, soldiers, uniformShifts } from '../helpers/shifts'
 
