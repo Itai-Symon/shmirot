@@ -15,6 +15,7 @@ commands in each section.
 | Schedule a week: 30 soldiers, 3 posts, 4 h day / 2 h night shifts | **10 ms** (solver alone), **0.35 s** click → board on the slow CPU profile |
 | Re-plan after "went home", mid-week | **7 ms** |
 | Two weeks: 60 soldiers, 5 posts, 522 shifts | **94 ms** |
+| A month: 30 soldiers, 5 posts, 994 shifts, 1,476 seats, home-leave rotation (`tests/scale`) | **~0.1 s** |
 | Space used on the device (app files + data, 30 soldiers, a week planned) | **~540 KB** |
 | Network requests while using it | **none** (all data stays on the device) |
 | Server, account, backend | **none** |

@@ -169,6 +169,14 @@ night-shift length as hour chips or free minutes (15-minute steps). Ledger and l
 count weighted guard with the factor. Test: post-weight Claim 5 property (fails without
 weight-aware seats), generator test for 90-minute shifts and weightFactor.
 
+## 3.4 — Month-scale test
+`tests/scale/month.test.ts`: 30 soldiers (4 commanders, 3 medics), 5 posts (one hard, one
+easy, one night-only, one daytime medic), 4 h day / 2 h night, rest 4 h, home-leave rotation,
+30 days, once as one board and once replaced on day 15 with history. Measured: all 1,476 seats
+filled, ~0.1 s, min rest 2 h proven optimal (commander bottleneck), weighted gap within each
+group of interchangeable soldiers ≤ one shift, the two-board run identical to one board.
+Known weakness held as a ceiling: night-hours gap among plain soldiers 18 h.
+
 ## 3.5 — Backup (next version, requested)
 Data lives only in the app's own storage on the phone. Deleting the home-screen icon or
 moving to a new phone loses it. Add:

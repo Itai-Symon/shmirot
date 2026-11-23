@@ -449,6 +449,11 @@ max coverage, best min rest, best load spread. Assert:
 - Per-soldier time preferences ("not before 06:00") — next version, as soft cost.
 - Multi-device sync (export/import file and QR only).
 - Rotating the night trap away when slack exists (v1 only warns).
+- Balancing night hours directly. Weighted load is balanced (nights count ×α), but the
+  number of night hours is not a goal of its own: in the month-scale test (30 soldiers,
+  5 posts, 30 days) the weighted gap between interchangeable soldiers is within one shift,
+  while their night hours differ by up to 18 h. Candidate fix: a night-deviation tie-break or
+  a secondary objective; the scale test holds the current value as a ceiling.
 - Manual pins of future shifts. The solver already applies locks interleaved in time
   and keeps a pinned soldier out of overlapping shifts (§4.4 step 2, 3a), but v1 has no
   UI for it and the contract only defines locks of already-started shifts (§3).
