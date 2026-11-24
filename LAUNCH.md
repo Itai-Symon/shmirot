@@ -25,7 +25,11 @@ everything split to the minute. That is not the message.
    First baseline (session 2, 100 small random instances): minimum rest matched the
    brute-force optimum in 88% of comparable cases, load balance in 82%, and coverage in
    every aligned case (proven) and 92% of misaligned ones. Quote carefully: each figure
-   compares to the best possible schedule for that one metric. Re-run before posting.
+   compares to the best possible schedule for that one metric.
+   Re-run 2026-11-24 on 1,000 instances (seeds 3001, 11, 12, 13): coverage 100% aligned,
+   94.6% misaligned (worst gap 2 seats); min rest exact 88.4%, within 1 h 90.4%, worst 12 h;
+   load spread exact 83.0%, within 1 h 89.9%, worst 12 h. Not covered: task difficulty and
+   per-task rest (checked by their own property tests).
 5. **Light:** 180 KB for the whole app (less than one photo), works in airplane mode, a week
    for 30 soldiers is scheduled in ~10 ms. Numbers and method in PERFORMANCE.md.
 6. Open source, link to the repo and live demo.
