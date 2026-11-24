@@ -30,7 +30,7 @@ export function roleBottlenecks(soldiers: readonly Soldier[], shifts: readonly S
     if (roleShifts.length === 0) continue
     let worst: { qualified: number; needed: number; at: number } | null = null
     for (const t of starts) {
-      const window = roleShifts.filter((s) => s.start <= t && t < s.end + minRest)
+      const window = roleShifts.filter((s) => s.start <= t && t < s.end + (s.restAfterMinutes ?? minRest))
       if (window.length === 0) continue
       const needed = window.reduce((n, s) => n + requiredCount(s, role), 0)
       const qualified = soldiers.filter((sol) => sol.roles.includes(role) && window.some((s) => presentFor(sol, s))).length

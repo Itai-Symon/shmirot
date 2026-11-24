@@ -42,11 +42,19 @@ export function ActivityScreen(props: {
   const setPosts = (posts: PostConfig[]) => set({ posts })
   const setPostCount = (n: number) => {
     const next = n > s.posts.length ? [...s.posts, ...Array.from({ length: n - s.posts.length }, defaultPost)] : s.posts.slice(0, n)
-    // Difficulty only compares posts; with a single post it would just scale everyone equally.
-    setPosts(next.length === 1 ? next.map(({ weight: _w, ...p }) => p) : next)
+    // Difficulty, own length and own rest only compare tasks; with a single task they equal the activity's.
+    setPosts(
+      next.length === 1
+        ? next.map(({ weight: _w, shiftMinutes: _l, nightShiftMinutes: _n, restMinutes: _r, ...p }) => p)
+        : next,
+    )
   }
   const patchPost = (i: number, patch: Partial<PostConfig>) =>
-    setPosts(s.posts.map((p, j) => (j === i ? { ...p, ...patch } : p)))
+    setPosts(
+      s.posts.map((p, j) =>
+        j === i ? (Object.fromEntries(Object.entries({ ...p, ...patch }).filter(([, v]) => v !== undefined)) as unknown as PostConfig) : p,
+      ),
+    )
   const setReq = (i: number, role: Role, n: number) =>
     patchPost(i, { requirements: { ...s.posts[i].requirements, [role]: n } })
 
@@ -211,6 +219,55 @@ export function ActivityScreen(props: {
               <small>פי 2</small>
             </div>
           </div>
+          )}
+          {s.posts.length > 1 && (
+          <>
+          <Toggle
+            checked={p.shiftMinutes !== undefined}
+            hint={t.activity.ownLengthHint}
+            onChange={(on) =>
+              patchPost(
+                i,
+                on
+                  ? { shiftMinutes: s.shiftMinutes, ...(s.split && { nightShiftMinutes: s.split.nightShiftMinutes }) }
+                  : { shiftMinutes: undefined, nightShiftMinutes: undefined },
+              )
+            }
+          >
+            {t.activity.ownLength}
+          </Toggle>
+          {p.shiftMinutes !== undefined && (
+            <div className="indent">
+              <div className="field">
+                <span>{s.split ? t.activity.dayShiftLength : t.activity.shiftLength}</span>
+                <DurationField value={p.shiftMinutes} label={t.activity.shiftLength} onChange={(m) => patchPost(i, { shiftMinutes: m })} />
+              </div>
+              {s.split && (
+                <div className="field">
+                  <span>{t.activity.nightShiftLength}</span>
+                  <DurationField
+                    value={p.nightShiftMinutes ?? s.split.nightShiftMinutes}
+                    label={t.activity.nightShiftLength}
+                    onChange={(m) => patchPost(i, { nightShiftMinutes: m })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <Toggle
+            checked={p.restMinutes !== undefined}
+            hint={t.activity.ownRestHint}
+            onChange={(on) => patchPost(i, { restMinutes: on ? s.restMinutes : undefined })}
+          >
+            {t.activity.ownRest}
+          </Toggle>
+          {p.restMinutes !== undefined && (
+            <div className="field indent">
+              <span>{t.activity.restAfterTask}</span>
+              <DurationField value={p.restMinutes} label={t.activity.restAfterTask} min={0} max={24 * 60} onChange={(m) => patchPost(i, { restMinutes: m })} />
+            </div>
+          )}
+          </>
           )}
           <Toggle
             checked={p.activeWindow !== null}

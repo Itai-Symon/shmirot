@@ -41,6 +41,12 @@ export interface PostConfig {
   kind?: string
   /** Difficulty multiplier (default 1). Becomes Shift.weightFactor. */
   weight?: number
+  /** This task's own shift length (minutes); missing ⇒ the activity's. */
+  shiftMinutes?: number
+  /** This task's own night shift length when day/night is split; missing ⇒ the activity's. */
+  nightShiftMinutes?: number
+  /** Rest after a shift of this task (minutes); missing ⇒ the activity's rest. Becomes Shift.restAfterMinutes. */
+  restMinutes?: number
   /**
    * Different staffing at night: between these wall-clock hours the post needs these roles
    * instead of `requirements`. Shifts are cut at the window's edges.
@@ -218,7 +224,10 @@ export function generateShifts(cfg: ActivityConfig): GeneratedActivity {
     while (t < endN) {
       const mday = mod(t, DAY_MIN)
       const night = cfg.split !== null && inWindow(mday, cfg.split)
-      const len = Math.max(GRID_MINUTES, roundToGrid(night ? cfg.split!.nightShiftMinutes : cfg.shiftMinutes))
+      const len = Math.max(
+        GRID_MINUTES,
+        roundToGrid(night ? (post.nightShiftMinutes ?? cfg.split!.nightShiftMinutes) : (post.shiftMinutes ?? cfg.shiftMinutes)),
+      )
       let next = Math.min(t + len, endN)
       if (cfg.split && cfg.split.fromHour !== cfg.split.toHour) next = Math.min(next, nextEdge(t, cfg.split))
       const w = post.activeWindow
@@ -239,6 +248,7 @@ export function generateShifts(cfg: ActivityConfig): GeneratedActivity {
             end: toMinute(eMs),
             nightMinutes: nightMinutes(sMs, eMs, tz),
             ...(post.weight !== undefined && post.weight !== 1 && post.weight > 0 && { weightFactor: post.weight }),
+            ...(post.restMinutes !== undefined && post.restMinutes >= 0 && { restAfterMinutes: post.restMinutes }),
             requirements: { ...req },
           })
         }

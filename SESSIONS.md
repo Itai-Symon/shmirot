@@ -232,6 +232,14 @@ Tests: day-grouped WhatsApp, candidates + replacement verified, correction arith
   guard time) and lowers his fair share in proportion; the current board re-plans from now.
 - The "הסבר" button moved into a top bar with the offline status (it overlapped "שתף").
 
+## 3.10 — Per-task shift length and rest (D9)
+- Each task card: "אורך משמרת שונה" (day, and night when split) and "מנוחה שונה אחרי המשימה".
+- Generator emits `Shift.restAfterMinutes`; solver, verifier and reference use the rest set by
+  the soldier's last shift; ledger keeps `lastRestAfterMinutes` so a new board respects it;
+  no-show replacement calls a soldier rested by his last task's rest.
+- Honest note in the hint: different lengths ⇒ misaligned ⇒ fairness measured, not proven.
+Tests: `tests/properties/rest-after.test.ts` (random per-task rest, worked 2h/8h example).
+
 ## 5 — Launch
 README (Hebrew + English) with GIF, PROOF.md (Claims 4–5 + certificate, accessible language),
 GitHub Pages deploy, GitHub Actions CI, oracle stats for the post. See `LAUNCH.md`.

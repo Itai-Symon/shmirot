@@ -119,6 +119,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
     if (!soldierOfId.has(s.id)) soldierOfId.set(s.id, i)
   })
   const weight = shifts.map((s) => shiftWeight(s, alpha))
+  const restAfter = shifts.map((s) => (s.restAfterMinutes !== undefined && Number.isFinite(s.restAfterMinutes) && s.restAfterMinutes >= 0 ? s.restAfterMinutes : R))
   // 'separate' balance (D8): day and night parts of each shift, × post weight, no α.
   const separate = params.balance === 'separate'
   const factorOf = (s: Shift) => (s.weightFactor !== undefined && Number.isFinite(s.weightFactor) && s.weightFactor > 0 ? s.weightFactor : 1)
@@ -158,6 +159,8 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
   const fairShare = new Array<number>(nSoldiers).fill(0)
   const lastEnd = new Array<number>(nSoldiers).fill(-Infinity)
   const busyUntil = new Array<number>(nSoldiers).fill(-Infinity)
+  // D9: rest needed after each soldier's last shift (that shift's restAfter, else R).
+  const restNeed = new Array<number>(nSoldiers).fill(R)
   const dayLoad = new Array<number>(nSoldiers).fill(0)
   const nightLoad = new Array<number>(nSoldiers).fill(0)
   const dayFair = new Array<number>(nSoldiers).fill(0)
@@ -170,6 +173,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
     if (Number.isFinite(h.fairShare)) fairShare[i] = h.fairShare
     if (h.lastEnd !== null && Number.isFinite(h.lastEnd)) lastEnd[i] = h.lastEnd
     if (h.busyUntil !== null && Number.isFinite(h.busyUntil)) busyUntil[i] = h.busyUntil
+    if (h.lastRestAfter !== undefined && h.lastRestAfter !== null && Number.isFinite(h.lastRestAfter)) restNeed[i] = h.lastRestAfter
     const num = (x: number | undefined) => (x !== undefined && Number.isFinite(x) ? x : 0)
     dayLoad[i] = num(h.dayLoad)
     dayFair[i] = num(h.dayFairShare)
@@ -185,7 +189,8 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
 
   const commit = (pos: number, soldier: number, role: Role, locked: boolean) => {
     const shift = shifts[pos]
-    const restDebt = lastEnd[soldier] === -Infinity ? 0 : Math.max(0, R - (shift.start - lastEnd[soldier]))
+    const restDebt = lastEnd[soldier] === -Infinity ? 0 : Math.max(0, restNeed[soldier] - (shift.start - lastEnd[soldier]))
+    restNeed[soldier] = restAfter[pos]
     load[soldier] += weight[pos]
     dayLoad[soldier] += dayPart[pos]
     nightLoad[soldier] += nightPart[pos]
@@ -268,7 +273,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
         candidates.push({
           soldier: i,
           key: {
-            tier: rest >= R ? 0 : 1,
+            tier: rest >= restNeed[i] ? 0 : 1,
             deviation: deviationOf(i),
             rest,
             nextAbsenceStart: nextAbsenceStart(i, t),
@@ -360,7 +365,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
         for (let i = 0; i < nSoldiers; i++) {
           if (!slotsForRank.some((sl) => qualified[i].has(sl.role) && available(i, sl.pos))) continue
           const rest = t - lastEnd[i]
-          cands.push({ soldier: i, key: { tier: rest >= R ? 0 : 1, deviation: deviationOf(i), rest, nextAbsenceStart: nextAbsenceStart(i, t), id: soldiers[i].id } })
+          cands.push({ soldier: i, key: { tier: rest >= restNeed[i] ? 0 : 1, deviation: deviationOf(i), rest, nextAbsenceStart: nextAbsenceStart(i, t), id: soldiers[i].id } })
         }
         cands.sort((x, y) => compareCandidateKeys(x.key, y.key))
         cands.forEach((c, r) => {

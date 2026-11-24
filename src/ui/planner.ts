@@ -244,13 +244,15 @@ export function replacementCandidates(
     if (away) continue
     const mine = plan.output.assignments.filter((a) => a.soldierId === s.id).map((a) => byId.get(a.shiftId)!)
     if (mine.some((x) => x.start < shift.end && from < x.end)) continue
-    const ended = mine.filter((x) => x.end <= from).map((x) => x.end)
-    const rest = ended.length ? from - Math.max(...ended) : null
+    const ended = mine.filter((x) => x.end <= from).sort((a, b) => a.end - b.end)
+    const last = ended[ended.length - 1]
+    const rest = last ? from - last.end : null
+    const need = last?.restAfterMinutes ?? plan.settings.restMinutes // D9: set by his last task
     list.push({
       soldierId: s.id,
       name: s.name,
       restMinutes: rest,
-      rested: rest === null || rest >= plan.settings.restMinutes,
+      rested: rest === null || rest >= need,
       loadIndex: loadIndexOf(s),
     })
   }

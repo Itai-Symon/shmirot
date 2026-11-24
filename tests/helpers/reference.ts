@@ -31,15 +31,17 @@ export function buildOutput(input: SolverInput, picks: Pick[], opts: { upperBoun
   for (const s of input.soldiers) {
     const mine = picks.filter((p) => p.soldierId === s.id).sort((a, b) => shift(a.shiftId).start - shift(b.shiftId).start)
     let prevEnd: number | undefined
+    let need = R
     const r: number[] = []
     for (const p of mine) {
       const sh = shift(p.shiftId)
       if (prevEnd === undefined) debt.set(p, 0)
       else {
         r.push(sh.start - prevEnd)
-        debt.set(p, Math.max(0, R - (sh.start - prevEnd)))
+        debt.set(p, Math.max(0, need - (sh.start - prevEnd)))
       }
       prevEnd = sh.end
+      need = sh.restAfterMinutes ?? R
     }
     rests.set(s.id, r)
   }

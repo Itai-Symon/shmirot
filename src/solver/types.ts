@@ -44,6 +44,11 @@ export interface Shift {
    * weight (§4.4). Missing ⇒ 1. Must be > 0.
    */
   weightFactor?: number
+  /**
+   * Rest target after this shift (§4.4, D9): the next shift of whoever guarded this one should
+   * start at least this long after it ends. Missing ⇒ params.minRestMinutes.
+   */
+  restAfterMinutes?: Minutes
   /** How many soldiers of each role this shift needs. Missing role = 0. */
   requirements: Partial<Record<Role, number>>
 }
@@ -95,6 +100,8 @@ export interface SoldierHistory {
   lastEnd: Minutes | null
   /** The soldier is still in a shift that started before this schedule, until this minute. */
   busyUntil: Minutes | null
+  /** Rest target after that last shift (D9). Missing ⇒ params.minRestMinutes. */
+  lastRestAfter?: Minutes | null
 }
 
 export interface SolverInput {

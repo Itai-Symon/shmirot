@@ -27,6 +27,8 @@ export interface Ledger {
   lastEndMs: number | null
   /** Still in a shift until this instant (epoch ms). */
   busyUntilMs: number | null
+  /** Rest target after his last shift (D9), minutes; missing ⇒ the board's rest. */
+  lastRestAfterMinutes?: number | null
 }
 
 export const emptyLedger = (): Ledger => ({
@@ -59,11 +61,12 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
   const totals = activityTotals({ plan, closedAtMinute: null }, nowMs)
 
   // Guard of every shift that started inside [from, until), counted whole.
-  const guard = new Map<SoldierId, { day: number; night: number; weighted: number; dayW: number; nightW: number; lastEnd: number; busyUntil: number | null }>()
+  const guard = new Map<SoldierId, { day: number; night: number; weighted: number; dayW: number; nightW: number; lastEnd: number; lastRest: number | null; busyUntil: number | null }>()
   for (const a of plan.output.assignments) {
     const s = byId.get(a.shiftId)
     if (!s || s.start < from || s.start >= until) continue
-    const g = guard.get(a.soldierId) ?? { day: 0, night: 0, weighted: 0, dayW: 0, nightW: 0, lastEnd: -Infinity, busyUntil: null }
+    const g = guard.get(a.soldierId) ?? { day: 0, night: 0, weighted: 0, dayW: 0, nightW: 0, lastEnd: -Infinity, lastRest: null, busyUntil: null }
+    if (s.end >= g.lastEnd) g.lastRest = s.restAfterMinutes ?? plan.settings.restMinutes
     g.dayW += (s.end - s.start - s.nightMinutes) * (s.weightFactor ?? 1)
     g.nightW += s.nightMinutes * (s.weightFactor ?? 1)
     g.night += s.nightMinutes
@@ -106,6 +109,7 @@ export function foldPlan(ledgers: ReadonlyMap<SoldierId, Ledger>, plan: Plan, no
       l.dayLoad = (l.dayLoad ?? 0) + g.dayW
       l.nightLoad = (l.nightLoad ?? 0) + g.nightW
       l.lastEndMs = startMs + g.lastEnd * MIN_MS
+      l.lastRestAfterMinutes = g.lastRest
       l.busyUntilMs = g.busyUntil === null ? null : startMs + g.busyUntil * MIN_MS
     }
     l.homeMinutes += t.homeMinutes
@@ -131,6 +135,7 @@ export function toHistory(ledgers: ReadonlyMap<SoldierId, Ledger>, startEpochMs:
     nightFairShare: l.nightFairShare ?? 0,
     lastEnd: rel(l.lastEndMs),
     busyUntil: rel(l.busyUntilMs),
+    ...(l.lastRestAfterMinutes !== undefined && l.lastRestAfterMinutes !== null && { lastRestAfter: l.lastRestAfterMinutes }),
   }))
 }
 

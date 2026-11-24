@@ -253,10 +253,13 @@ export function expectedRestDebts(input: SolverInput, assignments: readonly Assi
     const sid = assignments[ordered[0]].soldierId
     const h = input.history?.find((x) => x.soldierId === sid)
     let prevEnd: number | null = h && h.lastEnd !== null && Number.isFinite(h.lastEnd) ? h.lastEnd : null
+    // D9: the rest needed is set by the PREVIOUS shift (its restAfterMinutes, else R).
+    let need = h && h.lastRestAfter !== undefined && h.lastRestAfter !== null && Number.isFinite(h.lastRestAfter) ? h.lastRestAfter : R
     for (const i of ordered) {
       const shift = shiftById.get(assignments[i].shiftId)!
-      result[i] = prevEnd === null ? 0 : Math.max(0, R - (shift.start - prevEnd))
+      result[i] = prevEnd === null ? 0 : Math.max(0, need - (shift.start - prevEnd))
       prevEnd = shift.end
+      need = shift.restAfterMinutes !== undefined && Number.isFinite(shift.restAfterMinutes) && shift.restAfterMinutes >= 0 ? shift.restAfterMinutes : R
     }
   }
   return result
