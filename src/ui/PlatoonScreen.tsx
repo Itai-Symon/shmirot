@@ -14,7 +14,7 @@ function newId(): string {
 }
 
 export function PlatoonScreen(props: {
-  onCorrect: (id: string, shown: { day: number; night: number; rest: number }, actual: { day: number; night: number }) => void
+  onCorrect: (id: string, shown: { day: number; night: number; rest: number; home: number }, actual: { day: number; night: number; home: number }) => void
   backup: ReactNode
   plan: Plan | undefined
   onResetLoad: () => void
@@ -30,8 +30,8 @@ export function PlatoonScreen(props: {
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [newRole, setNewRole] = useState('')
   const [confirmReset, setConfirmReset] = useState(false)
-  const [editing, setEditing] = useState<{ id: string; name: string; day: number; night: number; rest: number } | null>(null)
-  const [draft, setDraft] = useState<{ day: number; night: number } | null>(null)
+  const [editing, setEditing] = useState<{ id: string; name: string; day: number; night: number; rest: number; home: number } | null>(null)
+  const [draft, setDraft] = useState<{ day: number; night: number; home: number } | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000)
@@ -198,7 +198,7 @@ export function PlatoonScreen(props: {
                       <div><dt>{t.platoon.statRest}</dt><dd>{hm(n.restMinutes)}</dd></div>
                       <div><dt>{t.platoon.statHome}</dt><dd>{hm(n.homeMinutes)}</dd></div>
                       <div><dt>{t.platoon.statLoad}</dt><dd>{n.loadIndex === null ? '—' : `${Math.round(n.loadIndex * 100)}%`}</dd></div>
-                      <button type="button" className="link correct-btn" onClick={() => setEditing({ id: s.id, name: s.name, day: n.dayGuardMinutes, night: n.nightGuardMinutes, rest: n.restMinutes })}>
+                      <button type="button" className="link correct-btn" onClick={() => setEditing({ id: s.id, name: s.name, day: n.dayGuardMinutes, night: n.nightGuardMinutes, rest: n.restMinutes, home: n.homeMinutes })}>
                         {t.platoon.correct}
                       </button>
                     </dl>
@@ -260,12 +260,16 @@ export function PlatoonScreen(props: {
             <span>{t.platoon.correctNight}</span>
             <DurationField value={(draft ?? editing).night} min={0} max={999 * 60} label={t.platoon.correctNight} onChange={(m) => setDraft({ ...(draft ?? editing), night: m })} />
           </label>
+          <label className="field">
+            <span>{t.platoon.correctHome}</span>
+            <DurationField value={(draft ?? editing).home} min={0} max={999 * 60} label={t.platoon.correctHome} onChange={(m) => setDraft({ ...(draft ?? editing), home: m })} />
+          </label>
           <button
             type="button"
             className="btn primary big"
             onClick={() => {
               const d = draft ?? editing
-              props.onCorrect(editing.id, { day: editing.day, night: editing.night, rest: editing.rest }, { day: d.day, night: d.night })
+              props.onCorrect(editing.id, { day: editing.day, night: editing.night, rest: editing.rest, home: editing.home }, { day: d.day, night: d.night, home: d.home })
               setEditing(null)
               setDraft(null)
             }}

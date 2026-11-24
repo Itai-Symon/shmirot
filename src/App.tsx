@@ -177,13 +177,21 @@ export default function App() {
   }
 
   /** Correct a soldier's actual guard hours; the current board re-plans from now. */
-  const correctHours = async (id: SoldierId, shown: { day: number; night: number; rest: number }, actual: { day: number; night: number }) => {
+  const correctHours = async (id: SoldierId, shown: { day: number; night: number; rest: number; home: number }, actual: { day: number; night: number; home: number }) => {
     const alpha = settings.nightWeight ?? DEFAULT_PARAMS.nightWeight
-    updateSoldiers(soldiers.map((s) => (s.id === id ? { ...s, ledger: correctLedger(s.ledger, shown, actual, alpha) } : s)))
+    const old = soldiers.find((s) => s.id === id)?.ledger ?? emptyLedger()
+    const fixed = correctLedger(old, shown, actual, alpha)
+    updateSoldiers(soldiers.map((s) => (s.id === id ? { ...s, ledger: fixed } : s)))
     if (plan && !busy.current) {
       busy.current = true
       try {
-        const next = { ...plan, history: correctHistory(plan.history, id, actual.day - shown.day, actual.night - shown.night, plan.settings.nightWeight ?? DEFAULT_PARAMS.nightWeight) }
+        const dFair = {
+          all: fixed.fairShare - old.fairShare,
+          day: (fixed.dayFairShare ?? 0) - (old.dayFairShare ?? 0),
+          night: (fixed.nightFairShare ?? 0) - (old.nightFairShare ?? 0),
+        }
+        const pa = plan.settings.nightWeight ?? DEFAULT_PARAMS.nightWeight
+        const next = { ...plan, history: correctHistory(plan.history, id, actual.day - shown.day, actual.night - shown.night, pa, dFair) }
         updatePlan(await replan(next, soldiers, next.absences, minuteAt(next, Date.now()), solveInWorker))
       } catch {
         toast(t.board.solverError)
@@ -238,14 +246,16 @@ export default function App() {
   return (
     <div className="app" dir="rtl">
       <main>
-        <button type="button" className="btn help-btn" onClick={() => setTourOpen(true)}>
-          {t.tour.help}
-        </button>
+        <div className="topbar">
+          <p className={`offline-status ${offline}`} role="status">
+            {offline === 'ready' ? '✓ ' : ''}
+            {t.offline[offline]}
+          </p>
+          <button type="button" className="link help-btn" onClick={() => setTourOpen(true)}>
+            {t.tour.help}
+          </button>
+        </div>
         <WelcomeTour forceOpen={tourOpen} onClosed={() => setTourOpen(false)} />
-        <p className={`offline-status ${offline}`} role="status">
-          {offline === 'ready' ? '✓ ' : ''}
-          {t.offline[offline]}
-        </p>
         {!ready ? null : tab === 'platoon' ? (
           <PlatoonScreen
             onCorrect={(id, shown, actual) => void correctHours(id, shown, actual)}

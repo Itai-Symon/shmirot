@@ -84,3 +84,16 @@ describe('manual correction', () => {
     expect(correctHistory(undefined, 'b', 30, 0, 1.5)[0]).toMatchObject({ soldierId: 'b', load: 30 })
   })
 })
+
+describe('home-time correction', () => {
+  it('more home = less field time and a proportionally smaller fair share; never below guard time', async () => {
+    const { correctLedger } = await import('./ledger')
+    const l = { ...emptyLedger(), dayGuardMinutes: 300, fieldMinutes: 1200, fairShare: 600, weightedLoad: 300 }
+    const c = correctLedger(l, { day: 300, night: 0, rest: 900, home: 0 }, { day: 300, night: 0, home: 240 }, 1.5)
+    expect(c.homeMinutes).toBe(240)
+    expect(c.fieldMinutes).toBe(960)
+    expect(c.fairShare).toBeCloseTo(600 - (600 / 1200) * 240, 6)
+    const huge = correctLedger(l, { day: 300, night: 0, rest: 900, home: 0 }, { day: 300, night: 0, home: 5000 }, 1.5)
+    expect(huge.fieldMinutes).toBe(300) // clamped at his guard time
+  })
+})

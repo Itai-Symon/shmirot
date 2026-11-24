@@ -179,8 +179,8 @@ export function soldierNow(id: SoldierId, ledger: Ledger | undefined, plan: Plan
  */
 export function correctLedger(
   ledger: Ledger | undefined,
-  shown: { day: number; night: number; rest?: number },
-  actual: { day: number; night: number },
+  shown: { day: number; night: number; rest?: number; home?: number },
+  actual: { day: number; night: number; home?: number },
   nightWeight: number,
 ): Ledger {
   const l = { ...(ledger ?? emptyLedger()) }
@@ -192,11 +192,33 @@ export function correctLedger(
   l.dayLoad = (l.dayLoad ?? 0) + dDay
   l.nightLoad = (l.nightLoad ?? 0) + dNight
   l.fieldMinutes += Math.max(0, dDay + dNight - (shown.rest ?? 0))
+  // Home time: more home means less time in the field, and a smaller fair share for it.
+  const dHome = (actual.home ?? shown.home ?? 0) - (shown.home ?? 0)
+  if (dHome !== 0) {
+    const field = l.fieldMinutes
+    const moved = Math.min(dHome, Math.max(0, field - l.dayGuardMinutes - l.nightGuardMinutes)) // never below his guard time
+    const rate = (x: number | undefined) => (field > 0 ? (x ?? 0) / field : 0)
+    const r = rate(l.fairShare)
+    const rd = rate(l.dayFairShare)
+    const rn = rate(l.nightFairShare)
+    l.homeMinutes = Math.max(0, l.homeMinutes + dHome)
+    l.fieldMinutes = field - moved
+    l.fairShare -= r * moved
+    l.dayFairShare = (l.dayFairShare ?? 0) - rd * moved
+    l.nightFairShare = (l.nightFairShare ?? 0) - rn * moved
+  }
   return l
 }
 
 /** The same correction applied to a board's carried-in history, so re-planning reacts at once. */
-export function correctHistory(h: SoldierHistory[] | undefined, id: SoldierId, dDay: number, dNight: number, nightWeight: number): SoldierHistory[] {
+export function correctHistory(
+  h: SoldierHistory[] | undefined,
+  id: SoldierId,
+  dDay: number,
+  dNight: number,
+  nightWeight: number,
+  dFair: { all: number; day: number; night: number } = { all: 0, day: 0, night: 0 },
+): SoldierHistory[] {
   const list = [...(h ?? [])]
   const i = list.findIndex((x) => x.soldierId === id)
   const cur = i >= 0 ? list[i] : { soldierId: id, load: 0, fairShare: 0, lastEnd: null, busyUntil: null }
@@ -205,6 +227,9 @@ export function correctHistory(h: SoldierHistory[] | undefined, id: SoldierId, d
     load: cur.load + dDay + nightWeight * dNight,
     dayLoad: (cur.dayLoad ?? 0) + dDay,
     nightLoad: (cur.nightLoad ?? 0) + dNight,
+    fairShare: cur.fairShare + dFair.all,
+    dayFairShare: (cur.dayFairShare ?? 0) + dFair.day,
+    nightFairShare: (cur.nightFairShare ?? 0) + dFair.night,
   }
   if (i >= 0) list[i] = next
   else list.push(next)

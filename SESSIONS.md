@@ -225,6 +225,13 @@ Test in `shiftGenerator.test.ts`; checked in the browser (1 by day, 2 by night).
    (weighted, with "a night hour is worth X day hours" and an example).
 Tests: day-grouped WhatsApp, candidates + replacement verified, correction arithmetic.
 
+## 3.9 — Custom task types, home-time correction
+- Task type is a free short label ("עמדה", "סיור", or added: "+ סוג"); offered types are kept
+  in `ActivitySettings.taskKinds`; unnamed tasks are numbered per type.
+- "עדכן שעות" also corrects home time: more home moves time out of the field (never below his
+  guard time) and lowers his fair share in proportion; the current board re-plans from now.
+- The "הסבר" button moved into a top bar with the offline status (it overlapped "שתף").
+
 ## 5 — Launch
 README (Hebrew + English) with GIF, PROOF.md (Claims 4–5 + certificate, accessible language),
 GitHub Pages deploy, GitHub Actions CI, oracle stats for the post. See `LAUNCH.md`.

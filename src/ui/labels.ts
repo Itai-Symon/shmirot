@@ -25,14 +25,25 @@ export function roleName(roles: readonly RoleRecord[] | undefined, id: Role): st
   return roles?.find((r) => r.id === id)?.name || builtIn[id] || '?'
 }
 
-/** Display name of a task: its own name, or "עמדה N" / "סיור N" (numbered within its kind). */
+/** Task types offered by default. */
+export const DEFAULT_TASK_KINDS: readonly string[] = [t.activity.kindPost, t.activity.kindPatrol]
+
+/** A task's type label ("עמדה" if none; old 'post' / 'patrol' values mapped). */
+export function kindOf(p: PostConfig | undefined): string {
+  const k = p?.kind?.trim()
+  if (!k || k === 'post') return t.activity.kindPost
+  if (k === 'patrol') return t.activity.kindPatrol
+  return k
+}
+
+/** Display name of a task: its own name, or "<type> N" (numbered within its type). */
 export function postName(posts: readonly PostConfig[] | undefined, index: number): string {
   const own = posts?.[index]?.name?.trim()
   if (own) return own
   if (!posts || !posts[index]) return t.activity.post(index)
-  const kind = posts[index].kind ?? 'post'
-  const n = posts.slice(0, index + 1).filter((p) => (p.kind ?? 'post') === kind).length
-  return t.activity.kindName(kind, n)
+  const kind = kindOf(posts[index])
+  const n = posts.slice(0, index + 1).filter((p) => kindOf(p) === kind).length
+  return `${kind} ${n}`
 }
 
 /** Trim, collapse spaces, cut to LABEL_MAX. */

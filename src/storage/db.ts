@@ -28,6 +28,8 @@ export interface ActivitySettings extends ActivityConfig {
   balance?: BalanceMode
   /** Chosen duration chip in hours, or null when the end was set by hand. */
   durationHours: number | null
+  /** Task types offered for tasks (user-defined labels). Missing ⇒ the defaults. */
+  taskKinds?: string[]
 }
 
 /** The current schedule shown on the board. */

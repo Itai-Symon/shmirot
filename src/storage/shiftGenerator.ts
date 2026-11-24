@@ -34,8 +34,11 @@ export interface HourWindow {
 export interface PostConfig {
   /** Optional user-given name (UI only; the solver sees postIndex). */
   name?: string
-  /** What kind of task this is (UI only): a fixed post or a patrol. Default 'post'. */
-  kind?: 'post' | 'patrol'
+  /**
+   * Task type, a short user label such as "עמדה", "סיור", "כוננות" (UI only). Default "עמדה".
+   * Older saved values 'post' / 'patrol' are read as "עמדה" / "סיור".
+   */
+  kind?: string
   /** Difficulty multiplier (default 1). Becomes Shift.weightFactor. */
   weight?: number
   /**

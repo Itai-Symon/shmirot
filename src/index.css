@@ -228,7 +228,9 @@ table.stats td.num { direction: ltr; text-align: right; }
 .duration-unit { color: var(--muted); font-size: 0.85rem; margin-inline-end: 4px; }
 .tour h2 { margin-top: 0; }
 .tour p { line-height: 1.6; }
-.help-btn { position: absolute; inset-inline-end: 12px; top: 10px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 8px; }
+.topbar .offline-status { margin: 0; }
+.help-btn { font-size: 0.85rem; padding: 4px 0; }
 .app main { position: relative; }
 .tour h3 { margin: 14px 0 6px; font-size: 1rem; }
 .tour-list { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; line-height: 1.5; }
@@ -241,3 +243,5 @@ table.stats td.num { direction: ltr; text-align: right; }
 .choice span { font-size: 0.88rem; color: var(--muted); line-height: 1.45; }
 .choice.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
 .choice.on strong::before { content: '● '; color: var(--accent); }
+.kind-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+.kind-row input[type='text'] { width: 130px; }

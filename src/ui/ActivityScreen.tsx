@@ -4,7 +4,7 @@ import type { Role } from '../solver/types'
 import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
 import { BoardScore } from './BoardScore'
 import { addWallHours, type PostConfig } from '../storage/shiftGenerator'
-import { LABEL_MAX, cleanLabel, postName, type RoleRecord } from './labels'
+import { DEFAULT_TASK_KINDS, LABEL_MAX, cleanLabel, kindOf, postName, type RoleRecord } from './labels'
 import { FairnessPanel } from './FairnessPanel'
 import { NIGHT_WEIGHT_MAX, NIGHT_WEIGHT_MIN, NIGHT_WEIGHT_STEP } from './fairness'
 import { DEFAULT_PARAMS } from '../solver/types'
@@ -50,6 +50,20 @@ export function ActivityScreen(props: {
   const setReq = (i: number, role: Role, n: number) =>
     patchPost(i, { requirements: { ...s.posts[i].requirements, [role]: n } })
 
+  const kinds = [...new Set([...(s.taskKinds ?? DEFAULT_TASK_KINDS), ...s.posts.map(kindOf)])]
+  const [addingKind, setAddingKind] = useState<number | null>(null)
+  const [newKind, setNewKind] = useState('')
+  const addKind = (i: number) => {
+    const k = newKind.trim()
+    setAddingKind(null)
+    setNewKind('')
+    if (!k) return
+    props.onChange({
+      ...s,
+      taskKinds: [...new Set([...kinds, k])],
+      posts: s.posts.map((q, j) => (j === i ? { ...q, kind: k } : q)),
+    })
+  }
   const nightWeight = s.nightWeight ?? DEFAULT_PARAMS.nightWeight
 
   const create = () => {
@@ -133,12 +147,27 @@ export function ActivityScreen(props: {
       {s.posts.map((p, i) => (
         <div className="card post" key={i}>
           <h3>{postName(s.posts, i)}</h3>
-          <Chips
-            options={['post', 'patrol'] as const}
-            value={p.kind ?? 'post'}
-            label={(k) => (k === 'patrol' ? t.activity.kindPatrol : t.activity.kindPost)}
-            onChange={(k) => patchPost(i, { kind: k })}
-          />
+          <div className="kind-row">
+            <Chips options={kinds} value={kindOf(p)} label={(k) => k} onChange={(k) => patchPost(i, { kind: k })} />
+            {addingKind === i ? (
+              <span className="inline">
+                <input
+                  type="text"
+                  autoFocus
+                  maxLength={LABEL_MAX}
+                  value={newKind}
+                  placeholder={t.activity.newKindPlaceholder}
+                  onChange={(e) => setNewKind(cleanLabel(e.target.value))}
+                  onKeyDown={(e) => e.key === 'Enter' && addKind(i)}
+                  onBlur={() => addKind(i)}
+                />
+              </span>
+            ) : (
+              <button type="button" className="chip" onClick={() => setAddingKind(i)}>
+                {t.activity.addKind}
+              </button>
+            )}
+          </div>
           <label className="field">
             <span>{t.activity.postNameLabel}</span>
             <input
