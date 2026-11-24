@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { getKv, putKv } from '../storage/db'
 
-export type TipId = 'welcome' | 'platoon' | 'activity' | 'board'
+export type TipId = 'welcome'
 
 const KEY = 'seenTips'
 let seen: Set<TipId> | null = null
@@ -31,13 +31,6 @@ export async function markSeen(id: TipId): Promise<void> {
   await putKv(KEY, [...s])
 }
 
-/** Show every explanation again (from the help button). */
-export async function resetTips(): Promise<void> {
-  seen = new Set()
-  notify()
-  await putKv(KEY, [])
-}
-
 /** True when the tip should show; false while loading, so nothing flashes on returning users. */
 export function useTip(id: TipId): boolean {
   const [, force] = useState(0)
@@ -52,10 +45,8 @@ export function useTip(id: TipId): boolean {
   return seen !== null && !seen.has(id)
 }
 
-/** iPhone/iPad Safari that is not running as an installed app. */
-export function needsIosInstall(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true
-  return ios && !standalone
+/** Running as an installed home-screen app. */
+export function isInstalled(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true
 }

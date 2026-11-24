@@ -17,7 +17,7 @@ own goal, and ends with green tests and a commit. Update the status column when 
 | 3.2 | Board score (before / on board / after, gap) and "why him?" per shift | 3.1 | ✅ done |
 | 3.3 | Post difficulty weight, weight-aware seats, free shift lengths | 3.2 | ✅ done |
 | 3.5 | Backup: export / import a file | 3 | ✅ done |
-| 3.6 | First-use tour and per-screen tips | 3.5 | ✅ done |
+| 3.6 | First-use popup: install + work in order | 3.5 | ✅ done |
 | — | Pilot with a real platoon | 3 | ⬜ |
 | 4 | Fixes from pilot | pilot | ⬜ |
 | 5 | Launch: README + GIF, PROOF.md, live demo, CI | 4 | ⬜ |
@@ -201,12 +201,11 @@ moving to a new phone loses it. Add:
 - A gentle reminder on the stats tab if no backup was made in the last 14 days.
 - Tests: export → import round-trip is lossless; old files still import after a version bump.
 
-## 3.6 — First-use explanations
-Welcome tour (5 short steps) on the very first open, with the "Add to Home Screen" hint on
-iPhone Safari; a one-time tip at the top of the platoon, activity and board screens; "הסבר"
-button replays the tour; "show all explanations again" on the platoon page. Seen state in
-kv `seenTips` (`src/ui/onboarding.ts`, `src/ui/Onboarding.tsx`). Checked in the browser:
-shows once, survives reload, help reopens it.
+## 3.6 — First-use popup
+One popup on the first open (and from "הסבר"): how to install on iPhone / Android (or
+"installed ✓" when it already runs from the home screen), and "work in order": platoon →
+activity → board. Per-screen tips were removed at the user's request. The roles editor is
+open by default. `src/ui/onboarding.ts`, `src/ui/Onboarding.tsx`.
 
 ## 3.7 — Different staffing at night
 Per post: "בלילה צריך הרכב אחר" with its own hours (default 22–06) and role composition

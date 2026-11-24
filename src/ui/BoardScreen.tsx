@@ -1,4 +1,3 @@
-import { ScreenTip } from './Onboarding'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { postName } from './labels'
 import { FairnessPanel } from './FairnessPanel'
@@ -166,7 +165,6 @@ export function BoardScreen(props: {
         )}
       </div>
 
-      <ScreenTip id="board" />
       <FairnessPanel output={plan.output} roles={plan.roles} restMinutes={plan.settings.restMinutes} compact />
       <BoardScore plan={plan} soldiers={soldiers} />
 
