@@ -245,3 +245,11 @@ table.stats td.num { direction: ltr; text-align: right; }
 .choice.on strong::before { content: '● '; color: var(--accent); }
 .kind-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
 .kind-row input[type='text'] { width: 130px; }
+.shift.slot { align-items: stretch; }
+.shift.slot .shift-time { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.slot-grid { flex: 1; display: grid; gap: 6px; min-width: 0; }
+.slot-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-inline-start: 8px; border-inline-start: 1px solid var(--line); }
+.slot-cell:first-child { border-inline-start: 0; padding-inline-start: 0; }
+.slot-cell .names { flex-wrap: wrap; }
+.slot-cell .why-btn { align-self: flex-start; font-size: 0.75rem; }
+.slot-cell.empty { opacity: 0.4; }

@@ -139,6 +139,79 @@ export function BoardScreen(props: {
     )
   }
 
+  /** Names, missing seats and "why?" of one task in one time slot (used by the grouped view). */
+  const renderCell = (r: BoardRow, current: boolean, past: boolean) => (
+    <div key={r.shiftId} className="slot-cell">
+      <small className="muted">{r.postLabel}</small>
+      <div className="names">
+        {r.people.map((p) => (
+          <button
+            key={p.soldierId}
+            type="button"
+            className={`name${p.locked ? ' locked' : ''}${!past && isAbsentAt(plan.absences[p.soldierId], now) ? ' away' : ''}`}
+            onClick={() => {
+              setPicked(p.soldierId)
+              setPickedShift(current ? r.shiftId : null)
+            }}
+          >
+            {p.name}
+          </button>
+        ))}
+        {r.missing.map((m) => (
+          <span key={m.role} className="missing">
+            {t.board.missing(m.role, m.n)}
+          </span>
+        ))}
+      </div>
+      {plan.input && (
+        <button type="button" className="link why-btn" onClick={() => setWhy({ id: r.shiftId, label: `${r.startLabel}–${r.endLabel}` })}>
+          {t.fairness.why}
+        </button>
+      )}
+    </div>
+  )
+
+  /** "By time" with several tasks: one row per time slot, one column per task. */
+  const timeGrid = (list: BoardRow[]) => {
+    const order = new Map(posts.map((p, i) => [p, i]))
+    const groups: BoardRow[][] = []
+    for (const r of list) {
+      const g = groups[groups.length - 1]
+      if (g && g[0].start === r.start && g[0].end === r.end) g.push(r)
+      else groups.push([r])
+    }
+    const out: ReactNode[] = []
+    let day: number | null = null
+    for (const g of groups) {
+      const f = g[0]
+      if (f.dayKey !== day) {
+        day = f.dayKey
+        out.push(
+          <li key={`d${f.dayKey}-${f.shiftId}`} className="day">
+            {f.dayLabel}
+          </li>,
+        )
+      }
+      const past = f.end <= now
+      const current = f.start <= now && now < f.end
+      const cells: ReactNode[] = posts.map((p) => <div key={`e${p}`} className="slot-cell empty" />)
+      for (const r of g) cells[order.get(r.postIndex)!] = renderCell(r, current, past)
+      out.push(
+        <li key={`g-${f.shiftId}`} className={`shift slot${past ? ' past' : ''}${current ? ' current' : ''}`}>
+          <div className="shift-time">
+            <span className="ltr">{f.startLabel}</span>
+            <small className="muted ltr">{f.endLabel}</small>
+            {current && <span className="now-badge">{t.board.nowLabel}</span>}
+          </div>
+          <div className="slot-grid" style={{ gridTemplateColumns: `repeat(${posts.length}, minmax(0, 1fr))` }}>
+            {cells}
+          </div>
+        </li>,
+      )
+    }
+    return out
+  }
+
   const withDays = (list: BoardRow[], showPost: boolean) => {
     const out: ReactNode[] = []
     let day: number | null = null
@@ -205,7 +278,9 @@ export function BoardScreen(props: {
           </div>
         ))
       ) : (
-        <ul className="shifts">{withDays(rows, posts.length > 1)}</ul>
+        <ul className="shifts">
+          {posts.length > 1 ? timeGrid([...rows].sort((a, b) => a.start - b.start || a.end - b.end || a.postIndex - b.postIndex)) : withDays(rows, false)}
+        </ul>
       )}
 
       <p className="muted center small-print">{t.board.lockedHint}</p>
