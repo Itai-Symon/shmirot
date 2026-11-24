@@ -28,6 +28,7 @@ import { createPlan, minuteAt, toggleHome } from './ui/planner'
 import { solveInWorker } from './ui/solverClient'
 import { useOfflineStatus } from './ui/offline'
 import { BackupCard } from './ui/BackupCard'
+import { WelcomeTour } from './ui/Onboarding'
 import type { BackupFile } from './storage/backup'
 import { defaultRoles, type RoleRecord } from './ui/labels'
 
@@ -36,6 +37,7 @@ type Tab = 'platoon' | 'activity' | 'board'
 export default function App() {
   const [ready, setReady] = useState(false)
   const offline = useOfflineStatus()
+  const [tourOpen, setTourOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('platoon')
   const [soldiers, setSoldiers] = useState<SoldierRecord[]>([])
   const [settings, setSettings] = useState<ActivitySettings>(() => defaultSettings(Date.now()))
@@ -203,6 +205,10 @@ export default function App() {
   return (
     <div className="app" dir="rtl">
       <main>
+        <button type="button" className="btn help-btn" onClick={() => setTourOpen(true)}>
+          {t.tour.help}
+        </button>
+        <WelcomeTour forceOpen={tourOpen} onClosed={() => setTourOpen(false)} />
         <p className={`offline-status ${offline}`} role="status">
           {offline === 'ready' ? '✓ ' : ''}
           {t.offline[offline]}

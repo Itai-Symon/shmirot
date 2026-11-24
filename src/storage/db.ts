@@ -91,11 +91,11 @@ export async function saveSoldiers(list: SoldierRecord[]): Promise<void> {
   })
 }
 
-async function getKv<T>(key: string): Promise<T | undefined> {
+export async function getKv<T>(key: string): Promise<T | undefined> {
   return (await db.kv.get(key))?.value as T | undefined
 }
 
-async function putKv(key: string, value: unknown): Promise<void> {
+export async function putKv(key: string, value: unknown): Promise<void> {
   await db.kv.put({ key, value })
 }
 

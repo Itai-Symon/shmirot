@@ -1,3 +1,4 @@
+import { ScreenTip } from './Onboarding'
 import { useState } from 'react'
 import { t } from '../i18n'
 import type { Role } from '../solver/types'
@@ -65,6 +66,7 @@ export function ActivityScreen(props: {
   return (
     <section className="screen">
       <h1>{t.activity.title}</h1>
+      <ScreenTip id="activity" />
 
       <div className="card">
         <label className="field">

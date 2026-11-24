@@ -1,3 +1,5 @@
+import { ScreenTip } from './Onboarding'
+import { resetTips } from './onboarding'
 import { type ReactNode, useEffect, useState } from 'react'
 import { t } from '../i18n'
 import type { Role } from '../solver/types'
@@ -104,6 +106,7 @@ export function PlatoonScreen(props: {
   return (
     <section className="screen">
       <h1>{t.platoon.title}</h1>
+      <ScreenTip id="platoon" />
 
       <label className="field">
         <span>{t.platoon.pasteLabel}</span>
@@ -216,6 +219,11 @@ export function PlatoonScreen(props: {
           <p className="muted small-print">{t.platoon.statsHint}</p>
           <p className="muted small-print">
             <a href="./lab.html">{t.platoon.labLink}</a>
+          </p>
+          <p className="muted small-print">
+            <button type="button" className="link" onClick={() => void resetTips()}>
+              {t.tour.helpAgain}
+            </button>
           </p>
           <button
             type="button"

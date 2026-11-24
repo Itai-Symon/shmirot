@@ -226,3 +226,14 @@ table.stats td.num { direction: ltr; text-align: right; }
 .duration button:disabled { opacity: 0.35; }
 .duration input { width: 64px; border: none; background: transparent; text-align: center; font-size: 1.15rem; font-weight: 700; direction: ltr; font-variant-numeric: tabular-nums; }
 .duration-unit { color: var(--muted); font-size: 0.85rem; margin-inline-end: 4px; }
+.tour h2 { margin-top: 0; }
+.tour p { line-height: 1.6; }
+.tour-dots { display: flex; gap: 6px; justify-content: center; margin: 12px 0; }
+.tour-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.tour-dots span.on { background: var(--accent); width: 20px; border-radius: 4px; }
+.tour-actions { display: grid; gap: 8px; }
+.screen-tip { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: start; border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 0 0 12px; background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
+.screen-tip p { margin: 0; line-height: 1.5; font-size: 0.92rem; }
+.screen-tip .btn { grid-column: 2; justify-self: start; min-height: 34px; padding: 4px 14px; }
+.help-btn { position: absolute; inset-inline-end: 12px; top: 10px; }
+.app main { position: relative; }
