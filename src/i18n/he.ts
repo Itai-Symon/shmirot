@@ -136,6 +136,8 @@ export const he = {
     posts: 'עמדות',
     post: (i: number) => `עמדה ${i + 1}`,
     postNameLabel: 'שם העמדה (לא חובה)',
+    nightStaff: 'בלילה צריך הרכב אחר',
+    nightStaffHint: 'למשל אחד ביום ושניים בלילה',
     postWeight: (w: string) => `קושי העמדה: שעה כאן שווה פי ${w}`,
     postWeightPresets: { easy: 'קלה (פי 0.8)', normal: 'רגילה', hard: 'קשה (פי 1.3)' } as Record<string, string>,
     addPost: 'הוסף עמדה',

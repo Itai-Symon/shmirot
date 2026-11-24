@@ -36,6 +36,11 @@ export interface PostConfig {
   name?: string
   /** Difficulty multiplier (default 1). Becomes Shift.weightFactor. */
   weight?: number
+  /**
+   * Different staffing at night: between these wall-clock hours the post needs these roles
+   * instead of `requirements`. Shifts are cut at the window's edges.
+   */
+  night?: { fromHour: number; toHour: number; requirements: Partial<Record<Role, number>> } | null
   requirements: Partial<Record<Role, number>>
   /** Post staffed only inside this wall-clock window; null ⇒ around the clock. */
   activeWindow: HourWindow | null
@@ -213,6 +218,9 @@ export function generateShifts(cfg: ActivityConfig): GeneratedActivity {
       if (cfg.split && cfg.split.fromHour !== cfg.split.toHour) next = Math.min(next, nextEdge(t, cfg.split))
       const w = post.activeWindow
       if (w && w.fromHour !== w.toHour) next = Math.min(next, nextEdge(t, w))
+      const nw = post.night
+      if (nw && nw.fromHour !== nw.toHour) next = Math.min(next, nextEdge(t, nw))
+      const req = nw && nw.fromHour !== nw.toHour && inWindow(mday, nw) ? nw.requirements : post.requirements
 
       if (!w || inWindow(mday, w)) {
         const sMs = naiveToEpoch(t, tz)
@@ -226,7 +234,7 @@ export function generateShifts(cfg: ActivityConfig): GeneratedActivity {
             end: toMinute(eMs),
             nightMinutes: nightMinutes(sMs, eMs, tz),
             ...(post.weight !== undefined && post.weight !== 1 && post.weight > 0 && { weightFactor: post.weight }),
-            requirements: { ...post.requirements },
+            requirements: { ...req },
           })
         }
       }

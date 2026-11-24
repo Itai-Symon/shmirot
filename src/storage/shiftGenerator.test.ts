@@ -258,3 +258,22 @@ describe('15-minute grid', () => {
     expect(g.endMinute % 15).toBe(0)
   })
 })
+
+describe('different staffing at night', () => {
+  it('uses night requirements inside the window and cuts shifts at its edges', () => {
+    const g = generateShifts({
+      start: '2026-12-01T18:00',
+      end: '2026-12-02T10:00',
+      timeZone: 'Asia/Jerusalem',
+      shiftMinutes: 180,
+      split: null,
+      posts: [{ requirements: { soldier: 1 }, activeWindow: null, night: { fromHour: 22, toHour: 6, requirements: { soldier: 2, commander: 1 } } }],
+    })
+    const at = (h: number) => g.shifts.find((s) => (s.start / 60 + 18) % 24 === h)!
+    expect(at(18).requirements).toEqual({ soldier: 1 })
+    expect(at(21).end - at(21).start).toBe(60) // 21:00–22:00, cut at the night edge
+    expect(at(22).requirements).toEqual({ soldier: 2, commander: 1 })
+    expect(at(4).end - at(4).start).toBe(120) // 04:00–06:00, cut at the morning edge
+    expect(at(6).requirements).toEqual({ soldier: 1 })
+  })
+})

@@ -201,6 +201,41 @@ export function ActivityScreen(props: {
               />
             </div>
           )}
+          <Toggle
+            checked={!!p.night}
+            hint={t.activity.nightStaffHint}
+            onChange={(on) => patchPost(i, { night: on ? { fromHour: 22, toHour: 6, requirements: { ...p.requirements } } : null })}
+          >
+            {t.activity.nightStaff}
+          </Toggle>
+          {p.night && (
+            <div className="indent">
+              <div className="inline">
+                <span>{t.activity.from}</span>
+                <HourSelect label={t.activity.from} value={p.night.fromHour} onChange={(h) => patchPost(i, { night: { ...p.night!, fromHour: h } })} />
+                <span>{t.activity.to}</span>
+                <HourSelect label={t.activity.to} value={p.night.toHour} onChange={(h) => patchPost(i, { night: { ...p.night!, toHour: h } })} />
+              </div>
+              <div className="roles-grid">
+                {roles.map(({ id: r, name }) => (
+                  <div key={r} className={(p.night!.requirements[r] ?? 0) > 0 ? 'role-cell on' : 'role-cell'}>
+                    <span>{name}</span>
+                    <Stepper
+                      value={p.night!.requirements[r] ?? 0}
+                      max={9}
+                      label={name}
+                      onChange={(n) => {
+                        const req = { ...p.night!.requirements }
+                        if (n > 0) req[r] = n
+                        else delete req[r]
+                        patchPost(i, { night: { ...p.night!, requirements: req } })
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
 

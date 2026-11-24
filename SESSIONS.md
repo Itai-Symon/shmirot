@@ -208,6 +208,12 @@ button replays the tour; "show all explanations again" on the platoon page. Seen
 kv `seenTips` (`src/ui/onboarding.ts`, `src/ui/Onboarding.tsx`). Checked in the browser:
 shows once, survives reload, help reopens it.
 
+## 3.7 — Different staffing at night
+Per post: "בלילה צריך הרכב אחר" with its own hours (default 22–06) and role composition
+(`PostConfig.night`). The generator cuts shifts at the window edges and uses the night
+composition inside it; the solver is unchanged (shifts already carry their requirements).
+Test in `shiftGenerator.test.ts`; checked in the browser (1 by day, 2 by night).
+
 ## 5 — Launch
 README (Hebrew + English) with GIF, PROOF.md (Claims 4–5 + certificate, accessible language),
 GitHub Pages deploy, GitHub Actions CI, oracle stats for the post. See `LAUNCH.md`.
