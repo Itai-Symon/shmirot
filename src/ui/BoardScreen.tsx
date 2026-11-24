@@ -6,7 +6,7 @@ import { WhySheet } from './WhySheet'
 import { t } from '../i18n'
 import type { SoldierId } from '../solver/types'
 import type { Plan, SoldierRecord } from '../storage/db'
-import { type BoardRow, boardRows, isAbsentAt, minuteAt, whatsappText } from './planner'
+import { type BoardRow, type Replacement, boardRows, isAbsentAt, minuteAt, whatsappText } from './planner'
 import { Sheet } from './widgets'
 
 async function copyText(text: string): Promise<boolean> {
@@ -48,6 +48,8 @@ export function BoardScreen(props: {
   plan: Plan | undefined
   soldiers: SoldierRecord[]
   onToggleHome: (id: SoldierId, nowMs: number) => void
+  candidates: (shiftId: string, oldId: SoldierId) => Replacement[]
+  onReplace: (shiftId: string, oldId: SoldierId, newId: SoldierId) => void
   onGoCreate: () => void
   toast: (msg: string) => void
 }) {
@@ -55,6 +57,8 @@ export function BoardScreen(props: {
   const nowMs = useNow()
   const [view, setView] = useState<View>('post')
   const [picked, setPicked] = useState<SoldierId | null>(null)
+  const [pickedShift, setPickedShift] = useState<string | null>(null)
+  const [replacing, setReplacing] = useState(false)
   const [why, setWhy] = useState<{ id: string; label: string } | null>(null)
   const rows = useMemo(() => (plan ? boardRows(plan, soldiers) : []), [plan, soldiers])
   const rootRef = useRef<HTMLElement>(null)
@@ -110,7 +114,10 @@ export function BoardScreen(props: {
                 key={p.soldierId}
                 type="button"
                 className={`name${p.locked ? ' locked' : ''}${!past && isAbsentAt(plan.absences[p.soldierId], now) ? ' away' : ''}`}
-                onClick={() => setPicked(p.soldierId)}
+                onClick={() => {
+                  setPicked(p.soldierId)
+                  setPickedShift(current ? r.shiftId : null)
+                }}
               >
                 {p.name}
               </button>
@@ -205,7 +212,51 @@ export function BoardScreen(props: {
 
       {why && <WhySheet plan={plan} shiftId={why.id} label={why.label} soldiers={soldiers} onClose={() => setWhy(null)} />}
 
-      {picked && (
+      {picked && replacing && pickedShift && (
+        <Sheet
+          onClose={() => {
+            setReplacing(false)
+            setPicked(null)
+          }}
+        >
+          <h2>{t.board.noShowTitle(names.get(picked) ?? '')}</h2>
+          <p className="muted small-print">{t.board.noShowHint}</p>
+          {(() => {
+            const cands = props.candidates(pickedShift, picked)
+            if (cands.length === 0) return <p className="muted">{t.board.noShowNone}</p>
+            return (
+              <ul className="why-list">
+                {cands.slice(0, 10).map((c) => (
+                  <li key={c.soldierId} className={`why ${c.rested ? '' : 'busy'}`}>
+                    <button
+                      type="button"
+                      className="row-between replace-btn"
+                      onClick={() => {
+                        props.onReplace(pickedShift, picked, c.soldierId)
+                        setReplacing(false)
+                        setPicked(null)
+                      }}
+                    >
+                      <strong>{c.name}</strong>
+                      <span className="muted">
+                        {t.board.candidate(
+                          c.restMinutes === null ? t.board.candidateNeverGuarded : t.board.candidateRest((c.restMinutes / 60).toFixed(1)),
+                          c.loadIndex === null ? '—' : `${Math.round(c.loadIndex * 100)}%`,
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+          })()}
+          <button type="button" className="btn" onClick={() => setReplacing(false)}>
+            {t.board.cancel}
+          </button>
+        </Sheet>
+      )}
+
+      {picked && !replacing && (
         <Sheet onClose={() => setPicked(null)}>
           <h2>{names.get(picked) ?? t.board.unknownSoldier}</h2>
           <p className="muted">{pickedAway ? t.board.isHome : t.board.isHere}</p>
@@ -220,6 +271,11 @@ export function BoardScreen(props: {
           >
             {pickedAway ? t.board.cameBack : t.board.wentHome}
           </button>
+          {pickedShift && !pickedAway && (
+            <button type="button" className="btn big" onClick={() => setReplacing(true)}>
+              {t.board.noShow}
+            </button>
+          )}
           <button type="button" className="btn" onClick={() => setPicked(null)}>
             {t.board.cancel}
           </button>

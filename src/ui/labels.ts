@@ -25,9 +25,14 @@ export function roleName(roles: readonly RoleRecord[] | undefined, id: Role): st
   return roles?.find((r) => r.id === id)?.name || builtIn[id] || '?'
 }
 
-/** Display name of a post: its own name, or "עמדה N". */
+/** Display name of a task: its own name, or "עמדה N" / "סיור N" (numbered within its kind). */
 export function postName(posts: readonly PostConfig[] | undefined, index: number): string {
-  return posts?.[index]?.name?.trim() || t.activity.post(index)
+  const own = posts?.[index]?.name?.trim()
+  if (own) return own
+  if (!posts || !posts[index]) return t.activity.post(index)
+  const kind = posts[index].kind ?? 'post'
+  const n = posts.slice(0, index + 1).filter((p) => (p.kind ?? 'post') === kind).length
+  return t.activity.kindName(kind, n)
 }
 
 /** Trim, collapse spaces, cut to LABEL_MAX. */

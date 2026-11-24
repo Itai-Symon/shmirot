@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from './i18n'
-import type { SoldierId } from './solver/types'
+import { DEFAULT_PARAMS, type SoldierId } from './solver/types'
 import {
   type ActivitySettings,
   type Plan,
@@ -21,10 +21,10 @@ import {
 import { ActivityScreen } from './ui/ActivityScreen'
 import { BoardScreen } from './ui/BoardScreen'
 import { hasStarted } from './ui/history'
-import { emptyLedger, foldPlan, toHistory, type Ledger } from './ui/ledger'
+import { correctHistory, correctLedger, emptyLedger, foldPlan, soldierNow, toHistory, type Ledger } from './ui/ledger'
 import { PlatoonScreen } from './ui/PlatoonScreen'
 import { defaultSettings } from './ui/defaults'
-import { createPlan, minuteAt, toggleHome } from './ui/planner'
+import { createPlan, minuteAt, replaceInShift, replacementCandidates, replan, toggleHome } from './ui/planner'
 import { solveInWorker } from './ui/solverClient'
 import { useOfflineStatus } from './ui/offline'
 import { BackupCard } from './ui/BackupCard'
@@ -176,6 +176,39 @@ export default function App() {
     }
   }
 
+  /** Correct a soldier's actual guard hours; the current board re-plans from now. */
+  const correctHours = async (id: SoldierId, shown: { day: number; night: number; rest: number }, actual: { day: number; night: number }) => {
+    const alpha = settings.nightWeight ?? DEFAULT_PARAMS.nightWeight
+    updateSoldiers(soldiers.map((s) => (s.id === id ? { ...s, ledger: correctLedger(s.ledger, shown, actual, alpha) } : s)))
+    if (plan && !busy.current) {
+      busy.current = true
+      try {
+        const next = { ...plan, history: correctHistory(plan.history, id, actual.day - shown.day, actual.night - shown.night, plan.settings.nightWeight ?? DEFAULT_PARAMS.nightWeight) }
+        updatePlan(await replan(next, soldiers, next.absences, minuteAt(next, Date.now()), solveInWorker))
+      } catch {
+        toast(t.board.solverError)
+      } finally {
+        busy.current = false
+      }
+    }
+    toast(t.platoon.corrected)
+  }
+
+  /** A soldier did not show up for a running shift: put someone else in, re-plan from now. */
+  const onReplace = async (shiftId: string, oldId: SoldierId, newId: SoldierId) => {
+    if (!plan || busy.current) return
+    busy.current = true
+    try {
+      updatePlan(await replaceInShift(plan, soldiers, shiftId, oldId, newId, minuteAt(plan, Date.now()), solveInWorker))
+      const name = (id: SoldierId) => soldiers.find((s) => s.id === id)?.name ?? ''
+      toast(t.board.replaced(name(oldId), name(newId)))
+    } catch {
+      toast(t.board.solverError)
+    } finally {
+      busy.current = false
+    }
+  }
+
   /** "Reset load": everyone starts from zero; the current board counts only from now. */
   const resetLoad = () => {
     const nowMs = Date.now()
@@ -215,6 +248,7 @@ export default function App() {
         </p>
         {!ready ? null : tab === 'platoon' ? (
           <PlatoonScreen
+            onCorrect={(id, shown, actual) => void correctHours(id, shown, actual)}
             backup={
               <BackupCard
                 data={() => ({ soldiers, roles, settings, plan: plan ?? null })}
@@ -235,6 +269,12 @@ export default function App() {
             plan={plan}
             soldiers={soldiers}
             onToggleHome={(id, ms) => void onToggleHome(id, ms)}
+            candidates={(shiftId, oldId) =>
+              plan
+                ? replacementCandidates(plan, soldiers, shiftId, oldId, minuteAt(plan, Date.now()), (s) => soldierNow(s.id, s.ledger, plan, Date.now()).loadIndex)
+                : []
+            }
+            onReplace={(shiftId, oldId, newId) => void onReplace(shiftId, oldId, newId)}
             onGoCreate={() => go('activity')}
             toast={toast}
           />

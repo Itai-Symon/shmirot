@@ -61,7 +61,7 @@ function Timeline(props: { r: Run; other: Run; maxShifts: number }) {
           <tr>
             <th />
             {shifts.map((s) => (
-              <th key={s.id} title={`${label(s.start)}–${label(s.end)} · עמדה ${s.postIndex + 1}`}>
+              <th key={s.id} title={`${label(s.start)}–${label(s.end)} · משימה ${s.postIndex + 1}`}>
                 <span className={s.nightMinutes > 0 ? 'n' : ''}>{label(s.start).slice(0, 2)}</span>
               </th>
             ))}
@@ -79,7 +79,7 @@ function Timeline(props: { r: Run; other: Run; maxShifts: number }) {
                   <td
                     key={s.id}
                     className={`${on ? (s.nightMinutes > 0 ? 'on night' : 'on') : ''}${diff ? ' diff' : ''}${away ? ' away' : ''}`}
-                    title={`${soldierName(sol.id)} · ${label(s.start)}–${label(s.end)} · עמדה ${s.postIndex + 1}${on ? ' · שומר' : ''}`}
+                    title={`${soldierName(sol.id)} · ${label(s.start)}–${label(s.end)} · משימה ${s.postIndex + 1}${on ? ' · שומר' : ''}`}
                   >
                     {on ? s.postIndex + 1 : ''}
                   </td>
@@ -162,10 +162,10 @@ export function Lab() {
           <span>יציאות הביתה</span>
           <input type="checkbox" checked={sc.homeRotation} onChange={(e) => set({ homeRotation: e.target.checked, title: '' })} />
         </label>
-        <Num label="עמדות" value={sc.posts.length} min={1} max={6} onChange={(v) => set({ posts: Array.from({ length: v }, (_, i) => sc.posts[i] ?? { people: 1, commander: false, weight: 1, nightOnly: false }), title: '' })} />
+        <Num label="משימות" value={sc.posts.length} min={1} max={6} onChange={(v) => set({ posts: Array.from({ length: v }, (_, i) => sc.posts[i] ?? { people: 1, commander: false, weight: 1, nightOnly: false }), title: '' })} />
         {sc.posts.map((p, i) => (
           <div key={i} className="lab-post">
-            <strong>עמדה {i + 1}</strong>
+            <strong>משימה {i + 1}</strong>
             <Num label="אנשים" value={p.people} min={1} max={4} onChange={(v) => set({ posts: sc.posts.map((q, j) => (j === i ? { ...q, people: v } : q)), title: '' })} />
             <Num label="קושי פי" value={p.weight} min={0.5} max={2} step={0.1} onChange={(v) => set({ posts: sc.posts.map((q, j) => (j === i ? { ...q, weight: v } : q)), title: '' })} />
             <label className="lab-num"><span>כולל מפקד</span><input type="checkbox" checked={p.commander} onChange={(e) => set({ posts: sc.posts.map((q, j) => (j === i ? { ...q, commander: e.target.checked } : q)), title: '' })} /></label>
@@ -214,7 +214,7 @@ export function Lab() {
 
       <h3>הלוח עצמו</h3>
       <p className="muted small-print">
-        שורה = חייל, עמודה = משמרת (השעה למעלה, כחול = לילה). המספר בתא = העמדה. מסגרת = התא שונה בין שני האיזונים. אפור = בבית.
+        שורה = חייל, עמודה = משמרת (השעה למעלה, כחול = לילה). המספר בתא = המשימה. מסגרת = התא שונה בין שני האיזונים. אפור = בבית.
         <label> מציגים <input type="number" value={maxShifts} min={6} max={600} step={6} onChange={(e) => setMaxShifts(Number(e.target.value))} /> משמרות ראשונות</label>
       </p>
       <h4>משוקלל</h4>

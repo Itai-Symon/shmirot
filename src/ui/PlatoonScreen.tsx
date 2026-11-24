@@ -5,6 +5,7 @@ import type { Plan, SoldierRecord } from '../storage/db'
 import { soldierNow } from './ledger'
 import { LABEL_MAX, cleanLabel, newRoleId, type RoleRecord } from './labels'
 import { parseNames } from './names'
+import { DurationField, Sheet } from './widgets'
 
 let idCounter = 0
 function newId(): string {
@@ -13,6 +14,7 @@ function newId(): string {
 }
 
 export function PlatoonScreen(props: {
+  onCorrect: (id: string, shown: { day: number; night: number; rest: number }, actual: { day: number; night: number }) => void
   backup: ReactNode
   plan: Plan | undefined
   onResetLoad: () => void
@@ -28,6 +30,8 @@ export function PlatoonScreen(props: {
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [newRole, setNewRole] = useState('')
   const [confirmReset, setConfirmReset] = useState(false)
+  const [editing, setEditing] = useState<{ id: string; name: string; day: number; night: number; rest: number } | null>(null)
+  const [draft, setDraft] = useState<{ day: number; night: number } | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000)
@@ -194,6 +198,9 @@ export function PlatoonScreen(props: {
                       <div><dt>{t.platoon.statRest}</dt><dd>{hm(n.restMinutes)}</dd></div>
                       <div><dt>{t.platoon.statHome}</dt><dd>{hm(n.homeMinutes)}</dd></div>
                       <div><dt>{t.platoon.statLoad}</dt><dd>{n.loadIndex === null ? '—' : `${Math.round(n.loadIndex * 100)}%`}</dd></div>
+                      <button type="button" className="link correct-btn" onClick={() => setEditing({ id: s.id, name: s.name, day: n.dayGuardMinutes, night: n.nightGuardMinutes, rest: n.restMinutes })}>
+                        {t.platoon.correct}
+                      </button>
                     </dl>
                   )
                 })()}
@@ -235,6 +242,37 @@ export function PlatoonScreen(props: {
             </button>
           </div>
         </>
+      )}
+      {editing && (
+        <Sheet
+          onClose={() => {
+            setEditing(null)
+            setDraft(null)
+          }}
+        >
+          <h2>{t.platoon.correctTitle(editing.name)}</h2>
+          <p className="muted small-print">{t.platoon.correctHint}</p>
+          <label className="field">
+            <span>{t.platoon.correctDay}</span>
+            <DurationField value={(draft ?? editing).day} min={0} max={999 * 60} label={t.platoon.correctDay} onChange={(m) => setDraft({ ...(draft ?? editing), day: m })} />
+          </label>
+          <label className="field">
+            <span>{t.platoon.correctNight}</span>
+            <DurationField value={(draft ?? editing).night} min={0} max={999 * 60} label={t.platoon.correctNight} onChange={(m) => setDraft({ ...(draft ?? editing), night: m })} />
+          </label>
+          <button
+            type="button"
+            className="btn primary big"
+            onClick={() => {
+              const d = draft ?? editing
+              props.onCorrect(editing.id, { day: editing.day, night: editing.night, rest: editing.rest }, { day: d.day, night: d.night })
+              setEditing(null)
+              setDraft(null)
+            }}
+          >
+            {t.platoon.save}
+          </button>
+        </Sheet>
       )}
       {props.backup}
     </section>

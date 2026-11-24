@@ -189,21 +189,94 @@ export function boardRows(plan: Plan, soldiers: SoldierRecord[]): BoardRow[] {
 
 /** Plain text for a WhatsApp group: upcoming shifts only, grouped by post then day. */
 export function whatsappText(plan: Plan, soldiers: SoldierRecord[], now: Minutes): string {
-  const rows = boardRows(plan, soldiers).filter((r) => r.end > now)
-  const first = rows[0] ?? boardRows(plan, soldiers)[0]
-  const out: string[] = [t.whatsapp.header(first ? first.dayLabel : '')]
-  const posts = [...new Set(rows.map((r) => r.postIndex))].sort((a, b) => a - b)
-  for (const p of posts) {
-    out.push('', t.whatsapp.post(postName(plan.settings.posts, p)))
-    let day: number | null = null
-    for (const r of rows.filter((x) => x.postIndex === p)) {
-      if (r.dayKey !== day) {
-        if (day !== null || r.dayKey !== first?.dayKey) out.push(`_${r.dayLabel}_`)
-        day = r.dayKey
-      }
-      const who = [...r.people.map((x) => x.name), ...r.missing.map((m) => t.whatsapp.missing(m.role))]
-      out.push(`${r.startLabel}–${r.endLabel} ${who.join(', ')}`)
+  // Always grouped by day (whatever the board view), in time order; the task name is shown
+  // only when there is more than one task.
+  const rows = boardRows(plan, soldiers)
+    .filter((r) => r.end > now)
+    .sort((a, b) => a.start - b.start || a.postIndex - b.postIndex)
+  const several = plan.settings.posts.length > 1
+  const out: string[] = [t.whatsapp.header]
+  let day: number | null = null
+  for (const r of rows) {
+    if (r.dayKey !== day) {
+      out.push('', t.whatsapp.day(r.dayLabel))
+      day = r.dayKey
     }
+    const who = [...r.people.map((x) => x.name), ...r.missing.map((m) => t.whatsapp.missing(m.role))]
+    out.push(`${r.startLabel}–${r.endLabel}${several ? ` ${r.postLabel}` : ''} – ${who.join(', ')}`)
   }
   return out.join('\n')
+}
+
+export interface Replacement {
+  soldierId: SoldierId
+  name: string
+  /** Minutes since his last shift ended (null: has not guarded on this board). */
+  restMinutes: number | null
+  rested: boolean
+  /** Weighted guard ÷ field time so far (ledger + this board), 0..; null if no field time. */
+  loadIndex: number | null
+}
+
+/**
+ * Who can step in for `oldId` in a running shift: present now and until the shift ends,
+ * not guarding anything that overlaps, qualified for the same role. Rested soldiers first,
+ * then the lowest load.
+ */
+export function replacementCandidates(
+  plan: Plan,
+  soldiers: SoldierRecord[],
+  shiftId: string,
+  oldId: SoldierId,
+  now: Minutes,
+  loadIndexOf: (s: SoldierRecord) => number | null,
+): Replacement[] {
+  const shift = plan.generated.shifts.find((x) => x.id === shiftId)
+  const seat = plan.output.assignments.find((a) => a.shiftId === shiftId && a.soldierId === oldId)
+  if (!shift || !seat) return []
+  const byId = new Map(plan.generated.shifts.map((x) => [x.id, x]))
+  const inShift = new Set(plan.output.assignments.filter((a) => a.shiftId === shiftId).map((a) => a.soldierId))
+  const from = Math.max(now, shift.start)
+  const list: Replacement[] = []
+  for (const s of soldiers) {
+    if (!plan.soldierIds.includes(s.id) || inShift.has(s.id) || !s.roles.includes(seat.role)) continue
+    const away = (plan.absences[s.id] ?? []).some((a) => a.start < shift.end && from < a.end)
+    if (away) continue
+    const mine = plan.output.assignments.filter((a) => a.soldierId === s.id).map((a) => byId.get(a.shiftId)!)
+    if (mine.some((x) => x.start < shift.end && from < x.end)) continue
+    const ended = mine.filter((x) => x.end <= from).map((x) => x.end)
+    const rest = ended.length ? from - Math.max(...ended) : null
+    list.push({
+      soldierId: s.id,
+      name: s.name,
+      restMinutes: rest,
+      rested: rest === null || rest >= plan.settings.restMinutes,
+      loadIndex: loadIndexOf(s),
+    })
+  }
+  return list.sort(
+    (a, b) =>
+      Number(b.rested) - Number(a.rested) ||
+      (a.loadIndex ?? 0) - (b.loadIndex ?? 0) ||
+      (b.restMinutes ?? Infinity) - (a.restMinutes ?? Infinity) ||
+      a.name.localeCompare(b.name, 'he'),
+  )
+}
+
+/** Put `newId` in `oldId`'s seat of a running shift, then re-plan from now. */
+export async function replaceInShift(
+  plan: Plan,
+  soldiers: SoldierRecord[],
+  shiftId: string,
+  oldId: SoldierId,
+  newId: SoldierId,
+  now: Minutes,
+  solve: SolveAsync,
+): Promise<Plan> {
+  const assignments = plan.output.assignments.map((a) =>
+    a.shiftId === shiftId && a.soldierId === oldId ? { ...a, soldierId: newId, locked: true } : a,
+  )
+  const shift = plan.generated.shifts.find((x) => x.id === shiftId)!
+  // The shift has started, so replan() locks it (with the replacement) like the rest of the past.
+  return replan({ ...plan, output: { ...plan.output, assignments } }, soldiers, plan.absences, Math.max(now, shift.start + 1), solve)
 }

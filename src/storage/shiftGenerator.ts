@@ -34,6 +34,8 @@ export interface HourWindow {
 export interface PostConfig {
   /** Optional user-given name (UI only; the solver sees postIndex). */
   name?: string
+  /** What kind of task this is (UI only): a fixed post or a patrol. Default 'post'. */
+  kind?: 'post' | 'patrol'
   /** Difficulty multiplier (default 1). Becomes Shift.weightFactor. */
   weight?: number
   /**

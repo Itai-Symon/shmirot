@@ -4,9 +4,9 @@ import type { Role } from '../solver/types'
 import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
 import { BoardScore } from './BoardScore'
 import { addWallHours, type PostConfig } from '../storage/shiftGenerator'
-import { LABEL_MAX, cleanLabel, type RoleRecord } from './labels'
+import { LABEL_MAX, cleanLabel, postName, type RoleRecord } from './labels'
 import { FairnessPanel } from './FairnessPanel'
-import { NIGHT_WEIGHT_MAX, NIGHT_WEIGHT_MIN, NIGHT_WEIGHT_STEP, PRESETS, presetOf } from './fairness'
+import { NIGHT_WEIGHT_MAX, NIGHT_WEIGHT_MIN, NIGHT_WEIGHT_STEP } from './fairness'
 import { DEFAULT_PARAMS } from '../solver/types'
 
 const POST_WEIGHTS = [
@@ -51,7 +51,6 @@ export function ActivityScreen(props: {
     patchPost(i, { requirements: { ...s.posts[i].requirements, [role]: n } })
 
   const nightWeight = s.nightWeight ?? DEFAULT_PARAMS.nightWeight
-  const preset = presetOf(nightWeight)
 
   const create = () => {
     if (props.hasPlan && !confirm) {
@@ -133,14 +132,20 @@ export function ActivityScreen(props: {
 
       {s.posts.map((p, i) => (
         <div className="card post" key={i}>
-          <h3>{p.name?.trim() || t.activity.post(i)}</h3>
+          <h3>{postName(s.posts, i)}</h3>
+          <Chips
+            options={['post', 'patrol'] as const}
+            value={p.kind ?? 'post'}
+            label={(k) => (k === 'patrol' ? t.activity.kindPatrol : t.activity.kindPost)}
+            onChange={(k) => patchPost(i, { kind: k })}
+          />
           <label className="field">
             <span>{t.activity.postNameLabel}</span>
             <input
               type="text"
               value={p.name ?? ''}
               maxLength={LABEL_MAX}
-              placeholder={t.activity.post(i)}
+              placeholder={postName(s.posts.map((q, j) => (j === i ? { ...q, name: '' } : q)), i)}
               onChange={(e) => patchPost(i, { name: cleanLabel(e.target.value) })}
             />
             <small className="muted">{t.platoon.privacyHint}</small>
@@ -240,42 +245,47 @@ export function ActivityScreen(props: {
 
       <div className="card">
         <h2>{t.fairness.title}</h2>
-        <div className="field">
-          <span>{t.fairness.balanceLabel}</span>
-          <div className="segmented small" role="tablist">
-            <button type="button" role="tab" aria-selected={s.balance !== 'separate'} onClick={() => set({ balance: 'weighted' })}>
-              {t.fairness.balanceWeighted}
-            </button>
-            <button type="button" role="tab" aria-selected={s.balance === 'separate'} onClick={() => set({ balance: 'separate' })}>
-              {t.fairness.balanceSeparate}
-            </button>
-          </div>
-          <small className="muted">{s.balance === 'separate' ? t.fairness.balanceSeparateHint : t.fairness.balanceWeightedHint}</small>
+        <p className="field-label">{t.fairness.nightQuestion}</p>
+        <div className="choice-cards" role="radiogroup" aria-label={t.fairness.nightQuestion}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={s.balance === 'separate'}
+            className={s.balance === 'separate' ? 'choice on' : 'choice'}
+            onClick={() => set({ balance: 'separate' })}
+          >
+            <strong>{t.fairness.separateTitle}</strong>
+            <span>{t.fairness.separateBody}</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={s.balance !== 'separate'}
+            className={s.balance !== 'separate' ? 'choice on' : 'choice'}
+            onClick={() => set({ balance: 'weighted' })}
+          >
+            <strong>{t.fairness.compensateTitle}</strong>
+            <span>{t.fairness.compensateBody}</span>
+          </button>
         </div>
-        {s.balance !== 'separate' && (<>
-        <Chips
-          options={PRESETS.map((p) => p.id)}
-          value={preset}
-          label={(id) => t.fairness.presets[id]}
-          onChange={(id) => set({ nightWeight: PRESETS.find((p) => p.id === id)!.nightWeight })}
-        />
-        {preset && <small className="muted">{t.fairness.presetHints[preset]}</small>}
-        <label className="field">
-          <span>{t.fairness.nightWeight(String(nightWeight))}</span>
-          <div className="range-row">
-            <small>×{NIGHT_WEIGHT_MIN}</small>
-            <input
-              type="range"
-              min={NIGHT_WEIGHT_MIN}
-              max={NIGHT_WEIGHT_MAX}
-              step={NIGHT_WEIGHT_STEP}
-              value={nightWeight}
-              onChange={(e) => set({ nightWeight: Number(e.target.value) })}
-            />
-            <small>×{NIGHT_WEIGHT_MAX}</small>
-          </div>
-        </label>
-        </>)}
+        {s.balance !== 'separate' && (
+          <label className="field">
+            <span>{t.fairness.nightWorth(String(nightWeight))}</span>
+            <div className="range-row">
+              <small>{t.fairness.worthMin}</small>
+              <input
+                type="range"
+                min={NIGHT_WEIGHT_MIN}
+                max={NIGHT_WEIGHT_MAX}
+                step={NIGHT_WEIGHT_STEP}
+                value={nightWeight}
+                onChange={(e) => set({ nightWeight: Number(e.target.value) })}
+              />
+              <small>{t.fairness.worthMax}</small>
+            </div>
+            <small className="muted">{t.fairness.nightExample(String(2 * nightWeight))}</small>
+          </label>
+        )}
         <h3>{t.fairness.preview}</h3>
         <FairnessPanel output={props.preview?.output ?? null} busy={props.previewBusy} roles={roles} restMinutes={s.restMinutes} />
         {props.preview && <BoardScore plan={props.preview} soldiers={props.soldiers} />}

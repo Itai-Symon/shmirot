@@ -213,6 +213,18 @@ Per post: "בלילה צריך הרכב אחר" with its own hours (default 22�
 composition inside it; the solver is unchanged (shifts already carry their requirements).
 Test in `shiftGenerator.test.ts`; checked in the browser (1 by day, 2 by night).
 
+## 3.8 — Feedback from the first outside user
+1. WhatsApp text always grouped by day (time order; task name when there are several).
+2. Tasks instead of posts: each task is "עמדה" or "סיור" (`PostConfig.kind`); unnamed tasks
+   are numbered per kind ("עמדה 1", "סיור 1"). Solver unchanged.
+3. Correct a soldier's actual guard hours (platoon page → "עדכן שעות"): the difference goes
+   into his ledger and the current board's history, then the board re-plans from now.
+4. No-show in the running shift: "לא הגיע – החלף" lists who can step in (present, free,
+   qualified), rested first then lowest load; choosing re-plans from now (`replaceInShift`).
+5. Night fairness as two plain choices: "לילות שווה בשווה" (separate) or "מפצים על לילות"
+   (weighted, with "a night hour is worth X day hours" and an example).
+Tests: day-grouped WhatsApp, candidates + replacement verified, correction arithmetic.
+
 ## 5 — Launch
 README (Hebrew + English) with GIF, PROOF.md (Claims 4–5 + certificate, accessible language),
 GitHub Pages deploy, GitHub Actions CI, oracle stats for the post. See `LAUNCH.md`.

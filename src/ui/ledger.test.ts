@@ -66,3 +66,21 @@ describe('ledger', () => {
     expect(soldierNow('s0', emptyLedger(), undefined, now).loadIndex).toBeNull()
   })
 })
+
+describe('manual correction', () => {
+  it('adds the difference to the ledger and the board history; field time stays', async () => {
+    const { correctLedger, correctHistory } = await import('./ledger')
+    const l = { ...emptyLedger(), dayGuardMinutes: 240, nightGuardMinutes: 120, fieldMinutes: 1440, weightedLoad: 240 + 1.5 * 120 }
+    const c = correctLedger(l, { day: 240, night: 120 }, { day: 300, night: 60 }, 1.5)
+    expect(c.dayGuardMinutes).toBe(300)
+    expect(c.nightGuardMinutes).toBe(60)
+    expect(c.weightedLoad).toBe(300 + 1.5 * 60)
+    expect(c.fieldMinutes).toBe(1440) // no rest given: guard grew by 0 overall (+60 −60)
+    const more = correctLedger(emptyLedger(), { day: 0, night: 0, rest: 30 }, { day: 300, night: 0 }, 1.5)
+    expect(more.fieldMinutes).toBe(270) // 5 h guarded but only 0:30 of rest to absorb it
+    const h = correctHistory([{ soldierId: 'a', load: 100, fairShare: 50, lastEnd: null, busyUntil: null }], 'a', 60, -60, 1.5)
+    expect(h[0].load).toBe(100 + 60 - 90)
+    expect(h[0].fairShare).toBe(50)
+    expect(correctHistory(undefined, 'b', 30, 0, 1.5)[0]).toMatchObject({ soldierId: 'b', load: 30 })
+  })
+})

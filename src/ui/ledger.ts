@@ -170,3 +170,43 @@ export function soldierNow(id: SoldierId, ledger: Ledger | undefined, plan: Plan
     loadIndex: field > 0 ? weighted / field : null,
   }
 }
+
+/**
+ * Manual correction of what a soldier actually guarded (swaps, someone stayed longer...).
+ * Adds the difference between the corrected totals and what is shown now to his ledger.
+ * Rest absorbs the difference; if he guarded more than his shown rest allows, the extra was
+ * time in the field too, so field time grows by the excess. Fair share is unchanged.
+ */
+export function correctLedger(
+  ledger: Ledger | undefined,
+  shown: { day: number; night: number; rest?: number },
+  actual: { day: number; night: number },
+  nightWeight: number,
+): Ledger {
+  const l = { ...(ledger ?? emptyLedger()) }
+  const dDay = actual.day - shown.day
+  const dNight = actual.night - shown.night
+  l.dayGuardMinutes += dDay
+  l.nightGuardMinutes += dNight
+  l.weightedLoad += dDay + nightWeight * dNight
+  l.dayLoad = (l.dayLoad ?? 0) + dDay
+  l.nightLoad = (l.nightLoad ?? 0) + dNight
+  l.fieldMinutes += Math.max(0, dDay + dNight - (shown.rest ?? 0))
+  return l
+}
+
+/** The same correction applied to a board's carried-in history, so re-planning reacts at once. */
+export function correctHistory(h: SoldierHistory[] | undefined, id: SoldierId, dDay: number, dNight: number, nightWeight: number): SoldierHistory[] {
+  const list = [...(h ?? [])]
+  const i = list.findIndex((x) => x.soldierId === id)
+  const cur = i >= 0 ? list[i] : { soldierId: id, load: 0, fairShare: 0, lastEnd: null, busyUntil: null }
+  const next = {
+    ...cur,
+    load: cur.load + dDay + nightWeight * dNight,
+    dayLoad: (cur.dayLoad ?? 0) + dDay,
+    nightLoad: (cur.nightLoad ?? 0) + dNight,
+  }
+  if (i >= 0) list[i] = next
+  else list.push(next)
+  return list
+}

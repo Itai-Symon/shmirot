@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivitySettings, Plan, SoldierRecord } from '../storage/db'
 import { solve as solveSync } from '../solver'
-import { buildSolverInput, createPlan, isAbsentAt, markBack, markHome, minuteAt, toggleHome, whatsappText } from './planner'
+import { verify } from '../verifier'
+import { buildSolverInput, createPlan, replaceInShift, replacementCandidates, isAbsentAt, markBack, markHome, minuteAt, toggleHome, whatsappText } from './planner'
 
 // Invented names only.
 const soldiers: SoldierRecord[] = [
@@ -106,8 +107,8 @@ describe('planner', () => {
     expect(JSON.stringify(seen)).not.toContain('שומר שער')
     expect(JSON.stringify(seen)).not.toContain('ש״ג')
     const text = whatsappText(p, team, -1)
-    expect(text).toContain('*ש״ג*')
-    expect(text).toContain('*עמדה 2*')
+    expect(text).toMatch(/\d\d:\d\d–\d\d:\d\d ש״ג – /)
+    expect(text).toMatch(/\d\d:\d\d–\d\d:\d\d עמדה 2 – /)
   })
 
   it('went home → re-plan from now: past locked, soldier not used later', async () => {
@@ -148,17 +149,40 @@ describe('planner', () => {
     expect(minuteAt(p, p.generated.startEpochMs + 90 * 60_000)).toBe(90)
   })
 
-  it('formats WhatsApp text by post and time, upcoming shifts only', async () => {
+  it('formats WhatsApp text grouped by day, in time order, upcoming shifts only', async () => {
     const p = await plan()
     const text = whatsappText(p, soldiers, 0)
     const lines = text.split('\n')
-    expect(lines[0]).toBe('*שמירות* יום ב׳ 23/11')
-    expect(lines).toContain('*עמדה 1*')
-    expect(lines).toContain('*עמדה 2*')
-    expect(lines).toContain('_יום ג׳ 24/11_')
-    expect(lines.find((l) => l.startsWith('20:00–22:00'))).toMatch(/^20:00–22:00 \S+/)
+    expect(lines[0]).toBe('*שמירות*')
+    const d1 = lines.indexOf('*יום ב׳ 23/11*')
+    const d2 = lines.indexOf('*יום ג׳ 24/11*')
+    expect(d1).toBeGreaterThan(0)
+    expect(d2).toBeGreaterThan(d1)
+    // Tasks starting together are listed together under their day (22:00: both tasks).
+    const at22 = lines.filter((l) => l.startsWith('22:00–00:00'))
+    expect(at22.map((l) => (l.includes('עמדה 1') ? 1 : l.includes('עמדה 2') ? 2 : 0))).toEqual([1, 2])
+    expect(lines.indexOf(at22[0])).toBeLessThan(d2)
+    expect(lines.find((l) => l.startsWith('20:00–22:00'))).toMatch(/^20:00–22:00 עמדה 1 – \S+/)
     // Later: shifts that already ended are dropped
     const later = whatsappText(p, soldiers, 600)
     expect(later.split('\n').some((l) => l.startsWith('20:00–22:00'))).toBe(false)
+  })
+
+  it('no-show: candidates are free, present and qualified; replacing keeps the board valid', async () => {
+    const p = await plan()
+    const first = p.output.assignments.find((a) => a.shiftId === p.generated.shifts[0].id)!
+    const now = 30
+    const cands = replacementCandidates(p, soldiers, first.shiftId, first.soldierId, now, () => 0)
+    expect(cands.length).toBeGreaterThan(0)
+    const inShift = p.output.assignments.filter((a) => a.shiftId === first.shiftId).map((a) => a.soldierId)
+    for (const c of cands) {
+      expect(inShift).not.toContain(c.soldierId)
+      expect(soldiers.find((s) => s.id === c.soldierId)!.roles).toContain(first.role)
+    }
+    const next = await replaceInShift(p, soldiers, first.shiftId, first.soldierId, cands[0].soldierId, now, solve)
+    const seat = next.output.assignments.filter((a) => a.shiftId === first.shiftId).map((a) => a.soldierId)
+    expect(seat).toContain(cands[0].soldierId)
+    expect(seat).not.toContain(first.soldierId)
+    expect(verify(next.input!, next.output)).toEqual([])
   })
 })
