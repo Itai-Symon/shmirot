@@ -65,6 +65,7 @@ export function ActivityScreen(props: {
   return (
     <section className="screen">
       <h1>{t.activity.title}</h1>
+      <p className="muted">{t.activity.subtitle}</p>
 
       <div className="card">
         <label className="field">

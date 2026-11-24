@@ -19,7 +19,7 @@ export interface SoldierRecord {
   ledger?: Ledger
 }
 
-/** What the "התחל פעילות" screen edits. */
+/** What the "התחל תעסוקה" screen edits. */
 export interface ActivitySettings extends ActivityConfig {
   restMinutes: Minutes
   /** Night weight α (ALGORITHM.md D2). Missing in older saved settings ⇒ default. */
