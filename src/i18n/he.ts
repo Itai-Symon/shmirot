@@ -234,7 +234,19 @@ export const he = {
     colOnBoard: 'בלוח',
     colAfter: 'אחרי',
     why: 'למה?',
-    whyRule: (rest: string) => `הכלל: קודם מי שנח לפחות ${rest} ש׳, ומתוכם מי שהכי מתחת לחלק ההוגן שלו.`,
+    brotherhoodLabel: 'שיטת שיבוץ',
+    brotherhoodPresets: { rotation: 'רוטציה', balanced: 'מאוזן', load: 'לפי עומס' } as Record<string, string>,
+    brotherhoodPresetHints: {
+      rotation: 'מי שנח הכי הרבה – שומר קודם. עומס מצטבר לא רלוונטי.',
+      balanced: 'שילוב של זמן מנוחה ועומס מצטבר.',
+      load: 'מי שצבר פחות עומס – שומר קודם. זמן מנוחה כגורם שוביר.',
+    } as Record<string, string>,
+    whyRule: (beta: number) =>
+      beta >= 1
+        ? 'הכלל: מי שהכי מתחת לחלק ההוגן שלו. בין שווים – מי שנח הכי הרבה.'
+        : beta <= 0
+          ? 'הכלל: מי שנח הכי הרבה. בין שווים – מי שהכי מתחת לחלק ההוגן שלו.'
+          : 'הכלל: שילוב של זמן מנוחה ועומס מצטבר (טיית שיבוץ).',
     st: {
       chosen: 'שובץ',
       other_post: 'שובץ למשימה אחרת באותה שעה',

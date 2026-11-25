@@ -91,15 +91,20 @@ describe('worked example (SESSIONS.md 1A)', () => {
   })
 })
 
-describe('ranking (§4.4 b)', () => {
-  it('tier 0 orders by deviation first, tier 1 by rest first', () => {
+describe('ranking (§4.4 b, D9)', () => {
+  it('β=1 (default): deviation-first; β=0 (brotherhood): rest-first', () => {
     const base = { nextAbsenceStart: Infinity, id: 'x' }
-    expect(compareCandidateKeys({ ...base, tier: 0, deviation: 1, rest: 999 }, { ...base, tier: 0, deviation: 2, rest: 0 })).toBeLessThan(0)
-    expect(compareCandidateKeys({ ...base, tier: 1, deviation: 9, rest: 100 }, { ...base, tier: 1, deviation: 0, rest: 50 })).toBeLessThan(0)
-    expect(compareCandidateKeys({ ...base, tier: 0, deviation: 99, rest: 0 }, { ...base, tier: 1, deviation: -99, rest: 0 })).toBeLessThan(0)
+    // β=1: lower deviation wins regardless of rest
+    expect(compareCandidateKeys({ ...base, deviation: 1, rest: 999 }, { ...base, deviation: 2, rest: 0 }, 1)).toBeLessThan(0)
+    // β=0: more rest wins regardless of deviation
+    expect(compareCandidateKeys({ ...base, deviation: 9, rest: 100 }, { ...base, deviation: 0, rest: 50 }, 0)).toBeLessThan(0)
+    // β=1: lower deviation beats higher rest
+    expect(compareCandidateKeys({ ...base, deviation: -99, rest: 0 }, { ...base, deviation: 99, rest: 999 }, 1)).toBeLessThan(0)
   })
 
-  it('prefers a rested soldier over a tired one regardless of load (D3)', () => {
+  it('β=1 (default): lower-load soldier beats higher-load regardless of rest (D9)', () => {
+    // a: load=480 (locked s1 0–480), b: load=60 (locked s2 700–760).
+    // s3 starts at 760: a has rest=280, b has rest=0 — but b has much lower deviation.
     const shifts: Shift[] = [
       { id: 's1', postIndex: 0, start: 0, end: 480, nightMinutes: 0, requirements: { soldier: 1 } },
       { id: 's2', postIndex: 0, start: 700, end: 760, nightMinutes: 0, requirements: { soldier: 1 } },
@@ -114,6 +119,24 @@ describe('ranking (§4.4 b)', () => {
         ],
       }),
     )
+    expect(byShift(out).s3).toEqual(['b'])
+  })
+
+  it('β=0 (brotherhood): more-rested soldier beats lower-load (old D3)', () => {
+    const shifts: Shift[] = [
+      { id: 's1', postIndex: 0, start: 0, end: 480, nightMinutes: 0, requirements: { soldier: 1 } },
+      { id: 's2', postIndex: 0, start: 700, end: 760, nightMinutes: 0, requirements: { soldier: 1 } },
+      { id: 's3', postIndex: 0, start: 760, end: 820, nightMinutes: 0, requirements: { soldier: 1 } },
+    ]
+    const out = solve({
+      soldiers: [soldier('a'), soldier('b')],
+      shifts,
+      params: { minRestMinutes: 240, nightWeight: 1, brotherhoodFactor: 0 },
+      locked: [
+        { shiftId: 's1', soldierId: 'a', role: 'soldier' },
+        { shiftId: 's2', soldierId: 'b', role: 'soldier' },
+      ],
+    })
     expect(byShift(out).s3).toEqual(['a'])
   })
 

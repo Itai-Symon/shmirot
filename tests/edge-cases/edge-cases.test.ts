@@ -24,8 +24,9 @@ describe('N = K(r+1) exactly', () => {
   })
 
   it('K=2, L=3h, R=6h, N=6: min rest exactly R; period 9 h does not divide 24 h ⇒ no NIGHT_TRAP', () => {
-    const input = makeInput(soldiers(6), uniformShifts({ count: 24, lengthMinutes: 180, requirements: { soldier: 2 }, clockOffset: hours(20) }), {
+    const input = makeInput(soldiers(6), uniformShifts({ count: 24, lengthMinutes: 180, requirements: { soldier: 2 }, clockOffset: hours(20), noNight: true }), {
       minRestMinutes: 360,
+      nightWeight: 1,
     })
     const out = runAndVerify(input)
     expect(out.shortages).toEqual([])
@@ -57,8 +58,9 @@ describe('N < K(r+1)', () => {
 
 describe('night trap (period divides 24 h)', () => {
   it('K=2, L=4h, R=8h, N=6: NIGHT_TRAP, and the schedule repeats every r+1 = 3 shifts', () => {
-    const input = makeInput(soldiers(6), uniformShifts({ count: 18, lengthMinutes: 240, requirements: { soldier: 2 }, clockOffset: hours(22) }), {
+    const input = makeInput(soldiers(6), uniformShifts({ count: 18, lengthMinutes: 240, requirements: { soldier: 2 }, clockOffset: hours(22), noNight: true }), {
       minRestMinutes: 480,
+      nightWeight: 1,
     })
     const out = runAndVerify(input)
     expect(codes(out)).toContain('NIGHT_TRAP')

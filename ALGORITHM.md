@@ -18,13 +18,13 @@ Status markers used below:
 |---|---|---|
 | D1 | Fairness for a soldier who was away (home leave) | Measured **relative to presence**: a soldier only accrues a fair share while present (see §4.3). Returning soldiers do not "catch up" on hours they missed. |
 | D2 | Night weight default | Hours inside **00:00–06:00** wall-clock count **×1.5** (adjustable, `nightWeight`). |
-| D3 | Rest vs. hours balance | **Rest first.** A rested soldier is always preferred over a tired one, regardless of hours. Hours balance is the second criterion. |
+| D3 | Rest vs. hours balance | *(superseded by D9)* |
 | D4 | Avoid fixed pairs in a post | **Not in v1.** |
 | D5 | Infeasibility | **There is always a schedule.** Rest is a target, not a hard rule. The only hard rules are physical: no one assigned while absent, no one in two places at once, roles only filled by qualified soldiers. Unfillable slots are reported as *shortages*. |
 | D6 | Privacy and labels | *(revised after session 2)* Free text is allowed for soldier names, **post names** and **role names** (user-defined roles). Post and role names are short labels (max 16 characters) and every such field shows the hint "no locations, unit names or identifying details"; the responsibility is the user's, as with names. Posts without a name show as `עמדה N`. No notes fields. All data stays on the device. The solver never sees any name: soldiers, posts and roles reach it only as ids / indexes. |
 | D7 | Carry-over between boards *(added after session 3)* | Each soldier has a **ledger** of what he did before the current board (day/night guard, home, field time, weighted load, fair share, last shift). Replacing a board folds what happened on it into the ledgers; every new board starts from them (`SolverInput.history`, §4.2). The ledgers are kept across activities until the user presses **"reset load"**. **Load index** = weighted guard minutes ÷ minutes in the field; home time does not count (consistent with D1). |
 | D8 | Day / night balance mode *(added after session 3)* | The user chooses. **Weighted** (default): one load per soldier, a night minute counts ×α — more nights can be paid back with fewer day hours. **Separate**: day and night are balanced on their own (`params.balance = 'separate'`); α is not used for decisions. Post weight applies in both modes. |
-| D9 | Per-task shift length and rest *(added after session 3.9)* | A task may have its own shift length (day and night) and its own **rest after**: `Shift.restAfterMinutes` (missing ⇒ `R`). The rest a soldier needs before his next shift is set by **his last shift**: `need(s) = restAfter(last shift of s)` (from history: `SoldierHistory.lastRestAfter`, else `R`). Everywhere this contract says "rested" or computes rest debt with `R`, read `need(s)`: tier 0 ⇔ `rest ≥ need(s)`, `restDebt = max(0, need(s) − rest)`. Tasks with different lengths do not start together, so the schedule is **misaligned**: Claims proven for aligned schedules hold only as measured (§7), and the app says so in the task card. |
+| D9 | Brotherhood factor β *(added after session 3.3)* | The user chooses via a slider (`params.brotherhoodFactor`, default 1). **β=1 (individual accounting):** rank candidates by cumulative load deviation — the soldier furthest below his fair share goes first; rest breaks ties. **β=0 (brotherhood/rotation):** rank by time since last shift — the most rested soldier goes first; load breaks ties. **0 < β < 1:** blended rank (dense rank for each criterion, weighted combination). `minRestMinutes` R remains as a measurement tool for warnings and the certificate only; it is no longer a ranking gate. D3 is superseded. |
 
 ---
 
@@ -164,12 +164,17 @@ INPUT: soldiers, shifts, params (R, α), locked
       (only if r ∈ roles(s) and AVAILABLE(s, j)):
 
         rest(s, j) = start_j − lastEnd[s]
-        tier       = 0 if rest ≥ R else 1                    (D3: rest first)
-        key        = tier 0: (deviation[s], −rest, nextAbsenceStart[s], id)
-                     tier 1: (−rest, deviation[s], nextAbsenceStart[s], id)
+        β          = params.brotherhoodFactor (D9, default 1)
 
-      Candidates of G are ranked by (tier, key) lexicographically; the rank is
-      the cost. Lower is better.
+        β = 1: key = (deviation[s], −rest, nextAbsenceStart[s], id)
+        β = 0: key = (−rest, deviation[s], nextAbsenceStart[s], id)
+        0 < β < 1: score = β × devRank(s) + (1−β) × restRank(s)
+                   where devRank is the dense rank of deviation[s] ascending
+                   and restRank is the dense rank of −rest ascending (most rested = rank 0),
+                   both computed over G's candidates; final key = (score, nextAbsenceStart[s], id).
+
+      Candidates of G are ranked by (key / score, nextAbsenceStart, id) lexicographically;
+      the rank is the cost. Lower is better.
 
    c. JOINT MATCHING (prevents wasting scarce roles):
       Build a bipartite graph:

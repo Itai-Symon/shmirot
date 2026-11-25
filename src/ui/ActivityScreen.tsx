@@ -6,7 +6,7 @@ import { BoardScore } from './BoardScore'
 import { addWallHours, type PostConfig } from '../storage/shiftGenerator'
 import { DEFAULT_TASK_KINDS, LABEL_MAX, cleanLabel, kindOf, postName, type RoleRecord } from './labels'
 import { FairnessPanel } from './FairnessPanel'
-import { NIGHT_WEIGHT_MAX, NIGHT_WEIGHT_MIN, NIGHT_WEIGHT_STEP } from './fairness'
+import { BROTHERHOOD_PRESETS, NIGHT_WEIGHT_MAX, NIGHT_WEIGHT_MIN, NIGHT_WEIGHT_STEP, PRESETS, brotherhoodPresetOf, presetOf } from './fairness'
 import { DEFAULT_PARAMS } from '../solver/types'
 
 const POST_WEIGHTS = [
@@ -73,6 +73,9 @@ export function ActivityScreen(props: {
     })
   }
   const nightWeight = s.nightWeight ?? DEFAULT_PARAMS.nightWeight
+  const preset = presetOf(nightWeight)
+  const brotherhoodFactor = s.brotherhoodFactor ?? 1
+  const brotherhoodPreset = brotherhoodPresetOf(brotherhoodFactor)
 
   const create = () => {
     if (props.hasPlan && !confirm) {
@@ -354,24 +357,53 @@ export function ActivityScreen(props: {
             <span>{t.fairness.compensateBody}</span>
           </button>
         </div>
-        {s.balance !== 'separate' && (
-          <label className="field">
-            <span>{t.fairness.nightWorth(String(nightWeight))}</span>
-            <div className="range-row">
-              <small>{t.fairness.worthMin}</small>
-              <input
-                type="range"
-                min={NIGHT_WEIGHT_MIN}
-                max={NIGHT_WEIGHT_MAX}
-                step={NIGHT_WEIGHT_STEP}
-                value={nightWeight}
-                onChange={(e) => set({ nightWeight: Number(e.target.value) })}
-              />
-              <small>{t.fairness.worthMax}</small>
-            </div>
-            <small className="muted">{t.fairness.nightExample(String(2 * nightWeight))}</small>
-          </label>
-        )}
+        {s.balance !== 'separate' && (<>
+        <Chips
+          options={PRESETS.map((p) => p.id)}
+          value={preset}
+          label={(id) => t.fairness.presets[id]}
+          onChange={(id) => set({ nightWeight: PRESETS.find((p) => p.id === id)!.nightWeight })}
+        />
+        {preset && <small className="muted">{t.fairness.presetHints[preset]}</small>}
+        <label className="field">
+          <span>{t.fairness.nightWeight(String(nightWeight))}</span>
+          <div className="range-row">
+            <small>×{NIGHT_WEIGHT_MIN}</small>
+            <input
+              type="range"
+              min={NIGHT_WEIGHT_MIN}
+              max={NIGHT_WEIGHT_MAX}
+              step={NIGHT_WEIGHT_STEP}
+              value={nightWeight}
+              onChange={(e) => set({ nightWeight: Number(e.target.value) })}
+            />
+            <small>×{NIGHT_WEIGHT_MAX}</small>
+          </div>
+        </label>
+        </>)}
+        <div className="field">
+          <span>{t.fairness.brotherhoodLabel}</span>
+          <Chips
+            options={BROTHERHOOD_PRESETS.map((p) => p.id)}
+            value={brotherhoodPreset}
+            label={(id) => t.fairness.brotherhoodPresets[id]}
+            onChange={(id) => set({ brotherhoodFactor: BROTHERHOOD_PRESETS.find((p) => p.id === id)!.value })}
+          />
+          {brotherhoodPreset && <small className="muted">{t.fairness.brotherhoodPresetHints[brotherhoodPreset]}</small>}
+          <div className="range-row">
+            <small>{t.fairness.brotherhoodPresets.rotation}</small>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.1}
+              value={brotherhoodFactor}
+              aria-label={t.fairness.brotherhoodLabel}
+              onChange={(e) => set({ brotherhoodFactor: Math.round(Number(e.target.value) * 10) / 10 })}
+            />
+            <small>{t.fairness.brotherhoodPresets.load}</small>
+          </div>
+        </div>
         <h3>{t.fairness.preview}</h3>
         <FairnessPanel output={props.preview?.output ?? null} busy={props.previewBusy} roles={roles} restMinutes={s.restMinutes} />
         {props.preview && <BoardScore plan={props.preview} soldiers={props.soldiers} />}

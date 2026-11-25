@@ -23,6 +23,18 @@ export function presetOf(nightWeight: number): PresetId | null {
   return PRESETS.find((p) => p.nightWeight === nightWeight)?.id ?? null
 }
 
+/** Brotherhood factor presets (D9). */
+export const BROTHERHOOD_PRESETS = [
+  { id: 'rotation', value: 0 },
+  { id: 'balanced', value: 0.5 },
+  { id: 'load', value: 1 },
+] as const
+export type BrotherhoodPresetId = (typeof BROTHERHOOD_PRESETS)[number]['id']
+
+export function brotherhoodPresetOf(beta: number): BrotherhoodPresetId | null {
+  return BROTHERHOOD_PRESETS.find((p) => p.value === beta)?.id ?? null
+}
+
 export type Level = 'ok' | 'info' | 'warn'
 export interface Notice {
   level: Level

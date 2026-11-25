@@ -58,6 +58,7 @@ export function buildSolverInput(
       minRestMinutes: plan.settings.restMinutes,
       nightWeight: plan.settings.nightWeight ?? DEFAULT_PARAMS.nightWeight,
       ...(plan.settings.balance === 'separate' && { balance: 'separate' as const }),
+      ...(plan.settings.brotherhoodFactor !== undefined && { brotherhoodFactor: plan.settings.brotherhoodFactor }),
     },
     locked,
   }

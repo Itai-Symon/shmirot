@@ -2,16 +2,16 @@
   "seed": 3001,
   "instances": 100,
   "rest": {
-    "zeroGapShare": 0.8831168831168831,
-    "meanGap": 20.649350649350648,
-    "maxGap": 360
+    "zeroGapShare": 0.8311688311688312,
+    "meanGap": 42.077922077922075,
+    "maxGap": 720
   },
   "spread": {
-    "zeroGapShare": 0.8163265306122449,
-    "meanGap": 19.744897959183675,
-    "maxGap": 285
+    "zeroGapShare": 0.7857142857142857,
+    "meanGap": 28.622448979591837,
+    "maxGap": 525
   },
-  "restPairsForced": 0,
+  "restPairsForced": 1,
   "coverage": {
     "zeroGapShare": 0.9230769230769231,
     "meanGap": 0.11538461538461539,

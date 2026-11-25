@@ -26,6 +26,8 @@ export interface ActivitySettings extends ActivityConfig {
   nightWeight?: number
   /** Balance mode (D8). Missing ⇒ 'weighted'. */
   balance?: BalanceMode
+  /** Brotherhood factor β (D9). 0=rotation, 1=load. Missing ⇒ 1. */
+  brotherhoodFactor?: number
   /** Chosen duration chip in hours, or null when the end was set by hand. */
   durationHours: number | null
   /** Task types offered for tasks (user-defined labels). Missing ⇒ the defaults. */

@@ -32,7 +32,7 @@ export function WhySheet(props: { plan: Plan; shiftId: string; label: string; so
       <h2>
         {shift ? postName(plan.settings.posts, shift.postIndex) : ''} · <bdi dir="ltr">{props.label}</bdi>
       </h2>
-      <p className="muted small-print">{t.fairness.whyRule(h(plan.settings.restMinutes))}</p>
+      <p className="muted small-print">{t.fairness.whyRule(plan.settings.brotherhoodFactor ?? 1)}</p>
       {!ex ? (
         <p className="muted">—</p>
       ) : (

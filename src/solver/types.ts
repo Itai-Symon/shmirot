@@ -61,12 +61,19 @@ export interface Shift {
 export type BalanceMode = 'weighted' | 'separate'
 
 export interface SolverParams {
-  /** Rest target R (a target, not a hard rule — decision D5). */
+  /** Rest target R (a target, not a hard rule — decision D5). Used only for warnings and certificate. */
   minRestMinutes: Minutes
   /** Multiplier for night minutes (decision D2, default 1.5). Used for decisions in 'weighted' mode only. */
   nightWeight: number
   /** Default 'weighted'. */
   balance?: BalanceMode
+  /**
+   * Brotherhood factor β (decision D9, default 1).
+   * 0 = pure rotation: rank by time since last shift (most rested goes first).
+   * 1 = pure load: rank by cumulative load deviation (furthest below fair share goes first).
+   * 0–1 blends the two by dense rank.
+   */
+  brotherhoodFactor?: number
 }
 
 export const DEFAULT_PARAMS: SolverParams = {
@@ -214,8 +221,9 @@ export interface CandidateExplanation {
   status: CandidateStatus
   /** Role taken, for 'chosen'. */
   role?: Role
-  /** For ranked soldiers (chosen / other_post / not_chosen): the §4.4 b key and rank (0 = first). */
+  /** For ranked soldiers (chosen / other_post / not_chosen): rank (0 = first). */
   rank?: number
+  /** Whether the soldier met the rest target R — informational only, not a ranking gate (D9). */
   rested?: boolean
   /** Minutes since the soldier's last shift ended; null if he has not guarded yet. */
   restMinutes?: number | null

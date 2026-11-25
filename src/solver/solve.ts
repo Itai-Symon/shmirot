@@ -54,21 +54,64 @@ function requiredCount(shift: Shift, role: Role): number {
   return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0
 }
 
-/** Ranking key of a candidate — ALGORITHM.md §4.4 b. */
+/** Ranking key of a candidate — ALGORITHM.md §4.4 b (D9). */
 export interface CandidateKey {
-  tier: 0 | 1
   deviation: number
   rest: number
   nextAbsenceStart: number
   id: string
 }
 
-export function compareCandidateKeys(a: CandidateKey, b: CandidateKey): number {
-  if (a.tier !== b.tier) return a.tier - b.tier
+/**
+ * Pure comparator for β ∈ {0, 1}. The solver uses sortCandidates() for intermediate β.
+ * β=1 (default): deviation-first; β=0: rest-first (most rested = rank 0).
+ */
+export function compareCandidateKeys(a: CandidateKey, b: CandidateKey, beta = 1): number {
+  const byDev = compareNumbers(a.deviation, b.deviation)
   const byRest = compareNumbers(-a.rest, -b.rest)
-  const byDeviation = compareNumbers(a.deviation, b.deviation)
-  const first = a.tier === 0 ? byDeviation || byRest : byRest || byDeviation
+  const first = beta >= 1 ? byDev || byRest : byRest || byDev
   return first || compareNumbers(a.nextAbsenceStart, b.nextAbsenceStart) || compareIds(a.id, b.id)
+}
+
+/** Dense rank by a comparator (0-indexed, ties share the lower rank, keyed by soldier index). */
+function denseRankBy(
+  candidates: { soldier: number; key: CandidateKey }[],
+  cmp: (a: CandidateKey, b: CandidateKey) => number,
+): Map<number, number> {
+  const sorted = [...candidates].sort((x, y) => cmp(x.key, y.key))
+  const ranks = new Map<number, number>()
+  for (let i = 0; i < sorted.length; i++) {
+    if (i === 0 || cmp(sorted[i].key, sorted[i - 1].key) !== 0) {
+      ranks.set(sorted[i].soldier, i)
+    } else {
+      ranks.set(sorted[i].soldier, ranks.get(sorted[i - 1].soldier)!)
+    }
+  }
+  return ranks
+}
+
+/**
+ * Sorts candidates in place according to brotherhoodFactor β (D9):
+ *   β=1 → deviation-first (pure load tracking)
+ *   β=0 → rest-first (pure rotation/brotherhood)
+ *   0<β<1 → blended by dense rank
+ */
+function sortCandidates(candidates: { soldier: number; key: CandidateKey }[], beta: number): void {
+  if (beta >= 1) {
+    candidates.sort((x, y) => compareCandidateKeys(x.key, y.key, 1))
+    return
+  }
+  if (beta <= 0) {
+    candidates.sort((x, y) => compareCandidateKeys(x.key, y.key, 0))
+    return
+  }
+  const devRanks = denseRankBy(candidates, (a, b) => compareNumbers(a.deviation, b.deviation))
+  const restRanks = denseRankBy(candidates, (a, b) => compareNumbers(-a.rest, -b.rest))
+  candidates.sort((x, y) => {
+    const sx = beta * devRanks.get(x.soldier)! + (1 - beta) * restRanks.get(x.soldier)!
+    const sy = beta * devRanks.get(y.soldier)! + (1 - beta) * restRanks.get(y.soldier)!
+    return compareNumbers(sx, sy) || compareNumbers(x.key.nextAbsenceStart, y.key.nextAbsenceStart) || compareIds(x.key.id, y.key.id)
+  })
 }
 
 interface Slot {
@@ -104,6 +147,9 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
   const { soldiers, params } = input
   const R = params.minRestMinutes
   const alpha = params.nightWeight
+  const beta = params.brotherhoodFactor !== undefined && Number.isFinite(params.brotherhoodFactor)
+    ? Math.max(0, Math.min(1, params.brotherhoodFactor))
+    : 1
   const nSoldiers = soldiers.length
 
   // ---- Step 1: sort shifts. -------------------------------------------------------------
@@ -265,7 +311,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
       const eligible = (soldier: number, slot: Slot) =>
         qualified[soldier].has(slot.role) && available(soldier, slot.pos)
 
-      // Rank candidates of G (§4.4 b). All shifts of G start at t, so the key is per soldier.
+      // Rank candidates of G (§4.4 b, D9). All shifts of G start at t, so the key is per soldier.
       const candidates: { soldier: number; key: CandidateKey }[] = []
       for (let i = 0; i < nSoldiers; i++) {
         if (!slots.some((s, k) => k < nGroupSlots && eligible(i, s))) continue
@@ -273,7 +319,6 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
         candidates.push({
           soldier: i,
           key: {
-            tier: rest >= restNeed[i] ? 0 : 1,
             deviation: deviationOf(i),
             rest,
             nextAbsenceStart: nextAbsenceStart(i, t),
@@ -281,7 +326,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
           },
         })
       }
-      candidates.sort((x, y) => compareCandidateKeys(x.key, y.key))
+      sortCandidates(candidates, beta)
       const rank = new Array<number>(nSoldiers).fill(-1)
       candidates.forEach((c, r) => (rank[c.soldier] = r))
 
@@ -365,9 +410,9 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
         for (let i = 0; i < nSoldiers; i++) {
           if (!slotsForRank.some((sl) => qualified[i].has(sl.role) && available(i, sl.pos))) continue
           const rest = t - lastEnd[i]
-          cands.push({ soldier: i, key: { tier: rest >= restNeed[i] ? 0 : 1, deviation: deviationOf(i), rest, nextAbsenceStart: nextAbsenceStart(i, t), id: soldiers[i].id } })
+          cands.push({ soldier: i, key: { deviation: deviationOf(i), rest, nextAbsenceStart: nextAbsenceStart(i, t), id: soldiers[i].id } })
         }
-        cands.sort((x, y) => compareCandidateKeys(x.key, y.key))
+        sortCandidates(cands, beta)
         cands.forEach((c, r) => {
           rankOf.set(c.soldier, r)
           keyOf.set(c.soldier, c.key)
@@ -382,7 +427,7 @@ function run(input: SolverInput, explainFor: string | null): { output: SolverOut
         const c = roleOfChosen.get(i)
         const key = keyOf.get(i)
         const ranked = key
-          ? { rank: rankOf.get(i)!, rested: key.tier === 0, restMinutes: Number.isFinite(key.rest) ? key.rest : null, deviation: key.deviation }
+          ? { rank: rankOf.get(i)!, rested: key.rest >= R, restMinutes: Number.isFinite(key.rest) ? key.rest : null, deviation: key.deviation }
           : {}
         if (c && c.pos === target) return { soldierId: sol.id, status: 'chosen', role: c.role, ...ranked }
         if (c) return { soldierId: sol.id, status: 'other_post', role: c.role, ...ranked }
