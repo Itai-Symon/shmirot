@@ -298,7 +298,9 @@ time order can commit a soldier to a long shift that blocks several shorter ones
 (one soldier, post A 60–300, post B 90–210 / 210–330 / …: taking A covers 1 seat where B
 could have covered 2). Exact global coverage with overlapping intervals, roles and
 absences is a hard combinatorial problem and no efficient exact method is claimed. The
-gap to the oracle is recorded in the baseline and may not grow.
+gap to the oracle is recorded in the baseline and may not grow. In practice platoons are
+staffed adequately enough that this gap rarely appears; when it does, the solver still
+produces a valid schedule and reports shortages (D5).
 
 ### Claim 4 — Optimal rest in the uniform setting. [PROVEN for round-robin; SKETCH that the solver equals round-robin]
 
