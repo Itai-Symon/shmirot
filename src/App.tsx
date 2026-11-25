@@ -273,7 +273,7 @@ export default function App() {
             }
             plan={plan} onResetLoad={resetLoad} soldiers={soldiers} onChange={updateSoldiers} roles={roles} onRolesChange={updateRoles} onNext={() => go('activity')} toast={toast} />
         ) : tab === 'activity' ? (
-          <ActivityScreen soldiers={soldiers} preview={preview} previewBusy={previewBusy} roles={roles} settings={settings} onChange={updateSettings} hasPlan={!!plan} onCreate={() => void create()} />
+          <ActivityScreen soldiers={soldiers} preview={preview} previewBusy={previewBusy} roles={roles} settings={settings} onChange={updateSettings} onCreate={() => void create()} />
         ) : (
           <BoardScreen
             plan={plan}

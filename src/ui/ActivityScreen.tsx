@@ -20,7 +20,6 @@ import { Chips, DurationField, HourSelect, Stepper, Toggle } from './widgets'
 export function ActivityScreen(props: {
   settings: ActivitySettings
   onChange: (s: ActivitySettings) => void
-  hasPlan: boolean
   onCreate: () => void
   roles: RoleRecord[]
   preview: Plan | null
@@ -29,7 +28,6 @@ export function ActivityScreen(props: {
 }) {
   const roles = props.roles
   const { settings: s, onChange } = props
-  const [confirm, setConfirm] = useState(false)
   const set = (patch: Partial<ActivitySettings>) => onChange({ ...s, ...patch })
 
   const setStart = (start: string) => {
@@ -77,14 +75,7 @@ export function ActivityScreen(props: {
   const brotherhoodFactor = s.brotherhoodFactor ?? 1
   const brotherhoodPreset = brotherhoodPresetOf(brotherhoodFactor)
 
-  const create = () => {
-    if (props.hasPlan && !confirm) {
-      setConfirm(true)
-      return
-    }
-    setConfirm(false)
-    props.onCreate()
-  }
+  const create = () => props.onCreate()
 
   return (
     <section className="screen">
@@ -410,9 +401,8 @@ export function ActivityScreen(props: {
       </div>
 
       <div className="sticky-action">
-        {confirm && <p className="warn center">{t.activity.recreateConfirm}</p>}
-        <button type="button" className="btn primary big" onClick={create} onBlur={() => setConfirm(false)}>
-          {props.hasPlan ? t.activity.recreate : t.activity.create}
+        <button type="button" className="btn primary big" onClick={create}>
+          {t.activity.create}
         </button>
       </div>
     </section>

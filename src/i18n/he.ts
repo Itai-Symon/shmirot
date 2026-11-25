@@ -146,8 +146,6 @@ export const he = {
     nightFrom: 'לילה מ־',
     nightTo: 'עד',
     create: 'צור לוח',
-    recreate: 'צור לוח חדש',
-    recreateConfirm: 'הלוח הקיים יימחק. ללחוץ שוב לאישור',
     errNoSoldiers: 'קודם צריך להוסיף חיילים במחלקה',
     errEndBeforeStart: 'הסיום חייב להיות אחרי ההתחלה',
     errNoNeeds: 'כל משימה צריכה לפחות חייל אחד',
